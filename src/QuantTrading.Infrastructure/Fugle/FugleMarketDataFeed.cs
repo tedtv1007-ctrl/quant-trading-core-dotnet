@@ -237,6 +237,16 @@ public sealed class FugleMarketDataFeed : IMarketDataFeed, IAsyncDisposable
 
             foreach (var channel in channelsForType)
             {
+                // ── [Fugle Free Tier Limit] WebSocket 訂閱數限制 ─────
+                // 檢查是否超過總訂閱數 (5 個)
+                if (_channelIdMap.Count >= 5 && !entry.Contains(channel))
+                {
+                    _logger.LogWarning(
+                        "Fugle subscription limit reached (max 5). Skipping {Ticker}/{Channel}",
+                        tickerUpper, channel);
+                    continue;
+                }
+
                 if (entry.Add(channel))
                     newChannels.Add(channel);
             }
@@ -248,6 +258,7 @@ public sealed class FugleMarketDataFeed : IMarketDataFeed, IAsyncDisposable
             _logger.LogInformation("Subscribing: {Ticker}/{Channel} (mode={DataType})", ticker, channel, dataType);
         }
     }
+
 
     public void Unsubscribe(string ticker)
     {

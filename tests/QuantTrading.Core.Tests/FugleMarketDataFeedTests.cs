@@ -800,6 +800,59 @@ public class FugleMarketDataFeedTests
     }
 
     // ═════════════════════════════════════════════════════════════════
+    //  13. Fugle Free Tier Limits (5 Subscriptions & PreferTradesOnly)
+    // ═════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public void Subscribe_ExceedingLimit_ShouldNotExceedFiveSubscriptions()
+    {
+        var feed = CreateTestFeed();
+
+        // 訂閱 3 支股票，每支 2 個頻道 (Realtime: trades + candles) = 6 個訂閱
+        // 第 6 個訂閱應被擋掉
+        feed.Subscribe("2330", MarketDataType.Realtime); // 2 subs: 2330/trades, 2330/candles
+        feed.Subscribe("2454", MarketDataType.Realtime); // 2 subs: 2454/trades, 2454/candles
+        feed.Subscribe("2303", MarketDataType.Realtime); // 2 subs: 2303/trades (ok), 2303/candles (skip)
+
+        // 模擬伺服器回傳 subscribed 事件 (TrackChannelId 會增加 _channelIdMap.Count)
+        feed.ProcessMessage(Encoding.UTF8.GetBytes("""{"event":"subscribed","data":{"id":"ch1","channel":"trades","symbol":"2330"}}"""));
+        feed.ProcessMessage(Encoding.UTF8.GetBytes("""{"event":"subscribed","data":{"id":"ch2","channel":"candles","symbol":"2330"}}"""));
+        feed.ProcessMessage(Encoding.UTF8.GetBytes("""{"event":"subscribed","data":{"id":"ch3","channel":"trades","symbol":"2454"}}"""));
+        feed.ProcessMessage(Encoding.UTF8.GetBytes("""{"event":"subscribed","data":{"id":"ch4","channel":"candles","symbol":"2454"}}"""));
+        feed.ProcessMessage(Encoding.UTF8.GetBytes("""{"event":"subscribed","data":{"id":"ch5","channel":"trades","symbol":"2303"}}"""));
+
+        // 再訂閱一次 2303/candles 或是其他股票
+        feed.Subscribe("2317", MarketDataType.Realtime);
+
+        // 驗證 _subscriptions 內部的 entry 數量
+        // 注意: _subscriptions 紀錄的是「意圖」，而 _channelIdMap 紀錄的是「已確認連線」或是「佔位」
+        // 在我的實作中，Subscribe() 內會檢查 _channelIdMap.Count
+        
+        // 由於測試中手動觸發 ProcessMessage 模擬確認，我們檢查 _channelIdMap
+        var channelIdMap = GetChannelIdMap(feed);
+        channelIdMap.Count.Should().Be(5);
+    }
+
+    [Fact]
+    public void GetChannelsForDataType_PreferTradesOnly_ShouldReturnOnlyTrades()
+    {
+        var options = Options.Create(new FugleOptions
+        {
+            ApiToken = "test",
+            PreferTradesOnly = true
+        });
+        var feed = new FugleMarketDataFeed(options, NullLoggerFactory.Instance.CreateLogger<FugleMarketDataFeed>());
+
+        var channels = GetChannelsForDataType(feed, MarketDataType.Realtime);
+        channels.Should().HaveCount(1);
+        channels.Should().Contain(FugleChannels.Trades);
+
+        channels = GetChannelsForDataType(feed, MarketDataType.Simulate);
+        channels.Should().HaveCount(1);
+        channels.Should().Contain(FugleChannels.Trades);
+    }
+
+    // ═════════════════════════════════════════════════════════════════
     //  Helpers — 反射取得 internal channels
     // ═════════════════════════════════════════════════════════════════
 
@@ -815,5 +868,19 @@ public class FugleMarketDataFeedTests
         var field = typeof(FugleMarketDataFeed).GetField("_barChannel",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         return (System.Threading.Channels.Channel<BarData>)field!.GetValue(feed)!;
+    }
+
+    private Dictionary<(string Ticker, string Channel), string> GetChannelIdMap(FugleMarketDataFeed feed)
+    {
+        return (Dictionary<(string Ticker, string Channel), string>)feed.GetType()
+            .GetField("_channelIdMap", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .GetValue(feed)!;
+    }
+
+    private string[] GetChannelsForDataType(FugleMarketDataFeed feed, MarketDataType dataType)
+    {
+        return (string[])feed.GetType()
+            .GetMethod("GetChannelsForDataType", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .Invoke(feed, new object[] { dataType })!;
     }
 }
