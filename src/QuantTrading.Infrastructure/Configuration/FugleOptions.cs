@@ -37,4 +37,11 @@ public class FugleOptions
 
     /// <summary>Bar Channel 容量</summary>
     public int BarChannelCapacity { get; set; } = 1_000;
+
+    /// <summary>
+    /// 是否優先僅訂閱 Trades 頻道 (節省訂閱數額度)。
+    /// 若為 true，則即時模式不會訂閱 K 線，模擬模式不會訂閱試搓資訊。
+    /// 適用於基本用戶 (限 5 個訂閱數)。
+    /// </summary>
+    public bool PreferTradesOnly { get; set; } = false;
 }

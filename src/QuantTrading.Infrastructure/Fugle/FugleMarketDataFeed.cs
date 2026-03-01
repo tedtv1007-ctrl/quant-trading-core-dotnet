@@ -801,14 +801,22 @@ public sealed class FugleMarketDataFeed : IMarketDataFeed, IAsyncDisposable
     //  Helpers
     // ═════════════════════════════════════════════════════════════════
 
-    private static string[] GetChannelsForDataType(MarketDataType dataType) => dataType switch
+    private string[] GetChannelsForDataType(MarketDataType dataType)
     {
-        // Simulate (試搓) → aggregates (含最佳五檔/試搓價) + trades
-        MarketDataType.Simulate => new[] { FugleChannels.Aggregates, FugleChannels.Trades },
-        // Realtime → trades + candles
-        MarketDataType.Realtime => new[] { FugleChannels.Trades, FugleChannels.Candles },
-        _ => new[] { FugleChannels.Trades }
-    };
+        if (_options.PreferTradesOnly)
+        {
+            return new[] { FugleChannels.Trades };
+        }
+
+        return dataType switch
+        {
+            // Simulate (試搓) → aggregates (含最佳五檔/試搓價) + trades
+            MarketDataType.Simulate => new[] { FugleChannels.Aggregates, FugleChannels.Trades },
+            // Realtime → trades + candles
+            MarketDataType.Realtime => new[] { FugleChannels.Trades, FugleChannels.Candles },
+            _ => new[] { FugleChannels.Trades }
+        };
+    }
 
     /// <summary>
     /// 將 Fugle 微秒時間戳 (μs, 16 位數) 轉換為本地 DateTime。
