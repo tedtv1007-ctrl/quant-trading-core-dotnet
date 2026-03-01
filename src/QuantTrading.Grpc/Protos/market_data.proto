@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+option csharp_namespace = "QuantTrading.Grpc";
+
+package marketdata;
+
+import "google/protobuf/timestamp.proto";
+
+service MarketDataService {
+  rpc Subscribe (SubscribeRequest) returns (stream MarketDataUpdate);
+}
+
+message SubscribeRequest {
+  string ticker = 1;
+  enum DataType {
+    SIMULATED = 0;
+    REALTIME = 1;
+  }
+  DataType type = 2;
+}
+
+message MarketDataUpdate {
+  oneof update {
+    Tick tick = 1;
+    Bar bar = 2;
+  }
+}
+
+message Tick {
+  string ticker = 1;
+  double price = 2;
+  google.protobuf.Timestamp timestamp = 3;
+}
+
+message Bar {
+  string ticker = 1;
+  double open = 2;
+  double high = 3;
+  double low = 4;
+  double close = 5;
+  int64 volume = 6;
+  google.protobuf.Timestamp timestamp = 7;
+}

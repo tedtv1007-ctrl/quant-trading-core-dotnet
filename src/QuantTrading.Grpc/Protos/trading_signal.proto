@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+option csharp_namespace = "QuantTrading.Grpc";
+
+package trading;
+
+import "google/protobuf/timestamp.proto";
+
+service SignalService {
+  rpc StreamSignals (SignalSubscription) returns (stream TradeSignal);
+}
+
+message SignalSubscription {
+  string client_id = 1;
+}
+
+message TradeSignal {
+  string ticker = 1;
+  enum StrategyType {
+    OPEN_GAP = 0;
+    INTRADAY_DIP = 1;
+  }
+  StrategyType strategy = 2;
+  double entry_price = 3;
+  double stop_loss = 4;
+  int32 position_size = 5;
+  google.protobuf.Timestamp timestamp = 6;
+}

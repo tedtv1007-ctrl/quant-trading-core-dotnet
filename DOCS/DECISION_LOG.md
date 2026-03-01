@@ -2,10 +2,11 @@
 
 This log records architectural decisions, logic pivots, and implementation details to maintain continuity across development sessions. (Adopted from Claude-Mem 3-layer pattern).
 
-## [2026-03-01] Project Pivot: Adaptive Memory Implementation
-- **Decision:** Adopt "Lifecycle Memory" logic into Milk's operating procedure.
-- **Reasoning:** Ted's request to optimize actions based on `claude-mem`.
-- **Impact:** Milk will now proactively update this log and daily memory files after major implementation milestones.
+## [2026-03-01] Phase 3: gRPC Service Definition
+- **Decision:** Define gRPC services for \`MarketDataService\` and \`SignalService\`.
+- **Reasoning:** Ted's requirement for EDA and .NET 8 Worker Service communication.
+- **Impact:** gRPC allows low-latency, strongly-typed streaming of ticks and bars, as well as real-time signal notification to trading clients.
+- **Implemented:** \`market_data.proto\` and \`trading_signal.proto\` created in \`src/QuantTrading.Grpc/Protos\`.
 
 ## [2026-02-28] Initial Project Kick-off
 - **Decision:** Use C# .NET 8 Worker Service + gRPC.
