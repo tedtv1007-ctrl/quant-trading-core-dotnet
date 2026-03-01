@@ -1,0 +1,330 @@
+@page "/simulation"
+@using QuantTrading.Web.Services
+@using QuantTrading.Core.Models
+@inject TradingStateService State
+@inject SimulationBackgroundService SimService
+@rendermode InteractiveServer
+@implements IDisposable
+
+<PageTitle>Simulation - QuantTrading</PageTitle>
+
+<div class="qt-page-title">
+    <i class="bi bi-play-circle-fill title-icon"></i> Multi-Stock Simulation
+</div>
+
+<div class="row g-3 mb-4">
+    @* ── Left: Watchlist + Controls ── *@
+    <div class="col-md-6">
+        <div class="qt-card mb-3">
+            <div class="qt-card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-list-check"></i> Watchlist</span>
+                <span class="qt-badge qt-badge-blue">@watchlist.Count stocks</span>
+            </div>
+            <div class="qt-card-body">
+                @* Add stock form *@
+                <div class="row g-2 mb-3">
+                    <div class="col-4">
+                        <input type="text" class="form-control form-control-sm" placeholder="Ticker (e.g. 2330)"
+                               @bind="newTicker" disabled="@State.IsSimulationRunning" />
+                    </div>
+                    <div class="col-4">
+                        <input type="number" class="form-control form-control-sm" placeholder="Ref Price"
+                               @bind="newRefPrice" step="0.5" disabled="@State.IsSimulationRunning" />
+                    </div>
+                    <div class="col-4">
+                        <button class="btn btn-primary btn-sm w-100" @onclick="AddStock"
+                                disabled="@(State.IsSimulationRunning || string.IsNullOrWhiteSpace(newTicker))">
+                            <i class="bi bi-plus-lg"></i> Add
+                        </button>
+                    </div>
+                </div>
+
+                @* Quick Add *@
+                <div class="mb-3">
+                    <small class="text-neutral" style="font-size:0.75rem">QUICK ADD:</small>
+                    <div class="d-flex gap-1 flex-wrap mt-1">
+                        <button class="btn btn-outline-secondary btn-sm" style="font-size:0.78rem; border-color:var(--qt-border); color:var(--qt-text-muted)" @onclick='() => QuickAdd("2330", 600m)' disabled="@State.IsSimulationRunning">2330 台積電</button>
+                        <button class="btn btn-outline-secondary btn-sm" style="font-size:0.78rem; border-color:var(--qt-border); color:var(--qt-text-muted)" @onclick='() => QuickAdd("2317", 100m)' disabled="@State.IsSimulationRunning">2317 鴻海</button>
+                        <button class="btn btn-outline-secondary btn-sm" style="font-size:0.78rem; border-color:var(--qt-border); color:var(--qt-text-muted)" @onclick='() => QuickAdd("2454", 900m)' disabled="@State.IsSimulationRunning">2454 聯發科</button>
+                        <button class="btn btn-outline-secondary btn-sm" style="font-size:0.78rem; border-color:var(--qt-border); color:var(--qt-text-muted)" @onclick='() => QuickAdd("2881", 55m)' disabled="@State.IsSimulationRunning">2881 富邦金</button>
+                    </div>
+                </div>
+
+                @* Watchlist Table *@
+                @if (watchlist.Any())
+                {
+                    <table class="qt-table">
+                        <thead>
+                            <tr>
+                                <th>Ticker</th>
+                                <th>Ref Price</th>
+                                <th>Status</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var w in watchlist)
+                            {
+                                <tr>
+                                    <td><strong>@w.Ticker</strong></td>
+                                    <td class="mono">$@w.RefPrice.ToString("F1")</td>
+                                    <td>
+                                        <span class="qt-badge @GetStatusBadgeClass(w)">@w.Status</span>
+                                    </td>
+                                    <td style="text-align:right">
+                                        <button class="btn btn-sm" style="color:var(--qt-red); padding:0.1rem 0.4rem; font-size:0.8rem"
+                                                @onclick="() => RemoveStock(w.Ticker)" disabled="@State.IsSimulationRunning">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <div style="padding:1.5rem; text-align:center; color:var(--qt-text-dim)">
+                        <i class="bi bi-inbox" style="font-size:1.5rem; display:block; margin-bottom:0.5rem"></i>
+                        Watchlist is empty. Add stocks above.
+                    </div>
+                }
+            </div>
+        </div>
+
+        @* Simulation Control *@
+        <div class="qt-card">
+            <div class="qt-card-header">
+                <i class="bi bi-sliders"></i> Simulation Control
+            </div>
+            <div class="qt-card-body">
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label">Simulation Date</label>
+                        <input type="date" class="form-control form-control-sm" @bind="simulationDate"
+                               disabled="@State.IsSimulationRunning" />
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Tick Delay</label>
+                        <input type="range" class="form-range" min="10" max="500" @bind="tickDelayMs"
+                               disabled="@State.IsSimulationRunning" />
+                        <small class="mono" style="color:var(--qt-text-muted)">@tickDelayMs ms</small>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button class="btn btn-success" @onclick="StartSimulation"
+                            disabled="@(State.IsSimulationRunning || !watchlist.Any())">
+                        <i class="bi bi-play-fill"></i> Start All (@watchlist.Count)
+                    </button>
+                    <button class="btn btn-danger" @onclick="StopSimulation"
+                            disabled="@(!State.IsSimulationRunning)">
+                        <i class="bi bi-stop-fill"></i> Stop
+                    </button>
+                    <button class="btn btn-outline-secondary" style="border-color:var(--qt-border); color:var(--qt-text-muted)"
+                            @onclick="ClearData" disabled="@State.IsSimulationRunning">
+                        <i class="bi bi-trash3"></i> Clear
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* ── Right: Live Status ── *@
+    <div class="col-md-6">
+        <div class="qt-card mb-3">
+            <div class="qt-card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-broadcast"></i> Live Status</span>
+                <span class="qt-badge @(State.IsSimulationRunning ? "qt-badge-green" : "qt-badge-blue")">@State.SimulationStatus</span>
+            </div>
+            <div class="qt-card-body">
+                <div class="row g-2 mb-3">
+                    <div class="col-3">
+                        <div class="qt-stat-card accent-blue" style="padding:0.75rem">
+                            <div class="stat-label" style="font-size:0.65rem">Stocks</div>
+                            <div class="stat-value" style="font-size:1.25rem">@watchlist.Count</div>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="qt-stat-card accent-purple" style="padding:0.75rem">
+                            <div class="stat-label" style="font-size:0.65rem">Trades</div>
+                            <div class="stat-value" style="font-size:1.25rem">@State.DailyTradeCount</div>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="qt-stat-card accent-green" style="padding:0.75rem">
+                            <div class="stat-label" style="font-size:0.65rem">Signals</div>
+                            <div class="stat-value text-profit" style="font-size:1.25rem">@signals.Count</div>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="qt-stat-card accent-red" style="padding:0.75rem">
+                            <div class="stat-label" style="font-size:0.65rem">Rejected</div>
+                            <div class="stat-value text-loss" style="font-size:1.25rem">@rejections.Count</div>
+                        </div>
+                    </div>
+                </div>
+
+                @* Per-Ticker Latest Price *@
+                <div class="qt-section-header" style="margin-bottom:0.5rem">
+                    <i class="bi bi-graph-up section-icon"></i>
+                    <h5 style="font-size:0.85rem">Per-Ticker Latest Price</h5>
+                </div>
+                @if (tickerLatestPrices.Any())
+                {
+                    <div class="row g-2">
+                        @foreach (var kv in tickerLatestPrices)
+                        {
+                            <div class="col-6 col-lg-4">
+                                <div class="qt-ticker-card" style="padding:0.6rem; text-align:center">
+                                    <div style="font-weight:600; font-size:0.85rem; color:var(--qt-text-muted)">@kv.Key</div>
+                                    <div style="font-size:1.15rem; font-weight:700; font-family:'JetBrains Mono',monospace; color:var(--qt-blue)">@kv.Value.ToString("F2")</div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div style="padding:1rem; text-align:center; color:var(--qt-text-dim); font-size:0.85rem">No data yet</div>
+                }
+            </div>
+        </div>
+
+        @* Signal Table *@
+        <div class="qt-card">
+            <div class="qt-card-header" style="color:var(--qt-green)">
+                <i class="bi bi-lightning-charge-fill"></i> Recent Signals
+            </div>
+            <div class="qt-card-body p-0">
+                @if (signals.Any())
+                {
+                    <div style="max-height:280px; overflow-y:auto">
+                        <table class="qt-table">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Strategy</th>
+                                    <th>Ticker</th>
+                                    <th>Entry</th>
+                                    <th>Stop</th>
+                                    <th>Size</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var s in signals.AsEnumerable().Reverse().Take(15))
+                                {
+                                    <tr>
+                                        <td class="mono">@s.Timestamp.ToString("HH:mm:ss")</td>
+                                        <td><span class="qt-badge @(s.Strategy == StrategyType.OpenGap ? "qt-badge-green" : "qt-badge-blue")">@s.Strategy</span></td>
+                                        <td><strong>@s.Ticker</strong></td>
+                                        <td class="mono">@s.EntryPrice.ToString("F2")</td>
+                                        <td class="mono">@s.StopLossPrice.ToString("F2")</td>
+                                        <td class="mono">@s.PositionSize</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div style="padding:2rem; text-align:center; color:var(--qt-text-dim)">
+                        <i class="bi bi-inbox" style="font-size:1.5rem; display:block; margin-bottom:0.5rem"></i>
+                        Add stocks and start simulation to see signals.
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    // ── Watchlist input ──
+    private string newTicker = "";
+    private decimal newRefPrice = 600m;
+
+    // ── Simulation params ──
+    private DateTime simulationDate = DateTime.Today;
+    private int tickDelayMs = 100;
+
+    // ── State snapshots ──
+    private List<WatchlistEntry> watchlist = new();
+    private List<SignalContext> signals = new();
+    private List<RejectedSignal> rejections = new();
+    private Dictionary<string, decimal> tickerLatestPrices = new();
+
+    protected override void OnInitialized()
+    {
+        State.OnStateChanged += RefreshData;
+        RefreshData();
+    }
+
+    private void AddStock()
+    {
+        if (string.IsNullOrWhiteSpace(newTicker) || newRefPrice <= 0) return;
+        State.AddToWatchlist(newTicker.Trim(), newRefPrice);
+        newTicker = "";
+        newRefPrice = 600m;
+        RefreshData();
+    }
+
+    private void QuickAdd(string ticker, decimal price)
+    {
+        State.AddToWatchlist(ticker, price);
+        RefreshData();
+    }
+
+    private void RemoveStock(string ticker)
+    {
+        State.RemoveFromWatchlist(ticker);
+        RefreshData();
+    }
+
+    private async Task StartSimulation()
+    {
+        SimService.StartSimulation(simulationDate, tickDelayMs);
+        await Task.Delay(100);
+        RefreshData();
+    }
+
+    private async Task StopSimulation()
+    {
+        await SimService.StopSimulationAsync();
+        RefreshData();
+    }
+
+    private void ClearData()
+    {
+        State.ClearAll();
+        RefreshData();
+    }
+
+    private void RefreshData()
+    {
+        watchlist = State.GetWatchlist();
+        signals = State.GetSignals();
+        rejections = State.GetRejections();
+
+        // 每支股票最新成交價
+        var ticks = State.GetRecentTicks();
+        tickerLatestPrices = ticks
+            .GroupBy(t => t.Ticker)
+            .ToDictionary(g => g.Key, g => g.Last().Price);
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    private string GetStatusBadgeClass(WatchlistEntry w)
+    {
+        if (w.IsRunning) return "qt-badge-yellow";
+        if (w.Status.Contains("Completed")) return "qt-badge-green";
+        if (w.Status.Contains("Error")) return "qt-badge-red";
+        return "qt-badge-blue";
+    }
+
+    public void Dispose()
+    {
+        State.OnStateChanged -= RefreshData;
+    }
+}

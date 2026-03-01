@@ -1,0 +1,283 @@
+﻿@page "/"
+@using QuantTrading.Web.Services
+@using QuantTrading.Core.Models
+@inject TradingStateService State
+@inject TradingConfiguration Config
+@rendermode InteractiveServer
+@implements IDisposable
+
+<PageTitle>Dashboard - QuantTrading</PageTitle>
+
+<div class="qt-page-title">
+    <i class="bi bi-grid-1x2-fill title-icon"></i> Trading Dashboard
+</div>
+
+@* ── Global Summary Stats ── *@
+<div class="row g-3 mb-4">
+    <div class="col-md col-6">
+        <div class="qt-stat-card @(State.IsSimulationRunning ? "accent-green qt-pulse" : "")">
+            <i class="bi bi-activity stat-icon"></i>
+            <div class="stat-label">Status</div>
+            <div class="stat-value @(State.IsSimulationRunning ? "text-profit" : "text-neutral")">@State.SimulationStatus</div>
+        </div>
+    </div>
+    <div class="col-md col-6">
+        <div class="qt-stat-card accent-blue">
+            <i class="bi bi-eye stat-icon"></i>
+            <div class="stat-label">Watchlist</div>
+            <div class="stat-value">@watchlist.Count</div>
+            <div class="stat-sub">stocks monitored</div>
+        </div>
+    </div>
+    <div class="col-md col-6">
+        <div class="qt-stat-card accent-purple">
+            <i class="bi bi-arrow-left-right stat-icon"></i>
+            <div class="stat-label">Today's Trades</div>
+            <div class="stat-value">@State.DailyTradeCount <span style="font-size:0.8rem;color:var(--qt-text-muted)">/ @Config.RiskConfig.MaxDailyTrades</span></div>
+        </div>
+    </div>
+    <div class="col-md col-6">
+        <div class="qt-stat-card @(State.DailyRealizedLoss > Config.RiskConfig.MaxDailyLoss * 0.6m ? "accent-red" : "accent-yellow")">
+            <i class="bi bi-shield-exclamation stat-icon"></i>
+            <div class="stat-label">Daily Loss</div>
+            <div class="stat-value @(State.DailyRealizedLoss > Config.RiskConfig.MaxDailyLoss * 0.6m ? "text-loss" : "")">$@State.DailyRealizedLoss.ToString("N0")</div>
+        </div>
+    </div>
+    <div class="col-md col-6">
+        <div class="qt-stat-card accent-green">
+            <i class="bi bi-lightning-charge stat-icon"></i>
+            <div class="stat-label">Total Signals</div>
+            <div class="stat-value text-profit">@signals.Count</div>
+        </div>
+    </div>
+</div>
+
+@* ── Per-Ticker Cards ── *@
+@if (watchlist.Any())
+{
+    <div class="qt-section-header">
+        <i class="bi bi-collection section-icon"></i>
+        <h5>Per-Ticker Overview</h5>
+    </div>
+    <div class="row g-3 mb-4">
+        @foreach (var w in watchlist)
+        {
+            var tickerSignals = signals.Where(s => s.Ticker == w.Ticker).ToList();
+            var tickerRejections = rejections.Where(r => r.Ticker == w.Ticker).ToList();
+            var latestTick = ticks.LastOrDefault(t => t.Ticker == w.Ticker);
+            var priceChange = latestTick != null && w.RefPrice > 0
+                ? ((latestTick.Price - w.RefPrice) / w.RefPrice * 100) : 0;
+
+            <div class="col-md-4 col-lg-3">
+                <div class="qt-ticker-card @(w.IsRunning ? "active" : "")">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong style="font-size:1.1rem; color:var(--qt-text)">@w.Ticker</strong>
+                        <span class="qt-badge @GetStatusBadgeClass(w)">@w.Status</span>
+                    </div>
+                    <div class="text-center mb-2">
+                        @if (latestTick != null)
+                        {
+                            <div style="font-size:1.75rem; font-weight:700; font-family:'JetBrains Mono',monospace"
+                                 class="@(priceChange >= 0 ? "text-profit" : "text-loss")">
+                                @latestTick.Price.ToString("F2")
+                            </div>
+                            <small class="@(priceChange >= 0 ? "text-profit" : "text-loss")">
+                                @(priceChange >= 0 ? "▲" : "▼") @priceChange.ToString("F2")%
+                            </small>
+                        }
+                        else
+                        {
+                            <div style="font-size:1.4rem; font-family:'JetBrains Mono',monospace; color:var(--qt-text-muted)">@w.RefPrice.ToString("F1")</div>
+                            <small class="text-neutral">Ref Price</small>
+                        }
+                    </div>
+                    <div style="border-top:1px solid var(--qt-border); padding-top:0.5rem; display:flex; justify-content:space-around; text-align:center">
+                        <div>
+                            <div style="font-size:0.7rem; color:var(--qt-text-dim); text-transform:uppercase">Signals</div>
+                            <div style="font-weight:700; color:var(--qt-green)">@tickerSignals.Count</div>
+                        </div>
+                        <div>
+                            <div style="font-size:0.7rem; color:var(--qt-text-dim); text-transform:uppercase">Rejected</div>
+                            <div style="font-weight:700; color:var(--qt-red)">@tickerRejections.Count</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@* ── Recent Signals + Rejections ── *@
+<div class="row g-3">
+    <div class="col-md-8">
+        <div class="qt-card">
+            <div class="qt-card-header" style="color:var(--qt-green)">
+                <i class="bi bi-lightning-charge-fill"></i> Recent Signals
+            </div>
+            <div class="qt-card-body p-0">
+                @if (signals.Any())
+                {
+                    <div style="max-height:360px; overflow-y:auto">
+                        <table class="qt-table">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Strategy</th>
+                                    <th>Order</th>
+                                    <th>Ticker</th>
+                                    <th>Entry</th>
+                                    <th>Stop Loss</th>
+                                    <th>Size</th>
+                                    <th>Vol</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var s in signals.AsEnumerable().Reverse().Take(15))
+                                {
+                                    <tr>
+                                        <td class="mono">@s.Timestamp.ToString("HH:mm:ss")</td>
+                                        <td><span class="qt-badge @(s.Strategy == StrategyType.OpenGap ? "qt-badge-green" : "qt-badge-blue")">@s.Strategy</span></td>
+                                        <td>@s.OrderType</td>
+                                        <td><strong>@s.Ticker</strong></td>
+                                        <td class="mono">@s.EntryPrice.ToString("F2")</td>
+                                        <td class="mono">@s.StopLossPrice.ToString("F2")</td>
+                                        <td class="mono">@s.PositionSize</td>
+                                        <td class="mono">@s.VolumeRatio.ToString("F1")x</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div style="padding:2rem; text-align:center; color:var(--qt-text-dim)">
+                        <i class="bi bi-inbox" style="font-size:2rem; display:block; margin-bottom:0.5rem"></i>
+                        No signals yet. Go to Simulation to add stocks and start.
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="qt-card">
+            <div class="qt-card-header" style="color:var(--qt-red)">
+                <i class="bi bi-x-octagon-fill"></i> Rejected Signals
+            </div>
+            <div class="qt-card-body p-0">
+                @if (rejections.Any())
+                {
+                    <div style="max-height:360px; overflow-y:auto">
+                        <table class="qt-table">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Reason</th>
+                                    <th>Ticker</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var r in rejections.AsEnumerable().Reverse().Take(10))
+                                {
+                                    <tr>
+                                        <td class="mono">@r.Timestamp.ToString("HH:mm:ss")</td>
+                                        <td><span class="qt-badge qt-badge-red">@r.Reason</span></td>
+                                        <td><strong>@r.Ticker</strong></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div style="padding:2rem; text-align:center; color:var(--qt-text-dim)">
+                        <i class="bi bi-check-circle" style="font-size:1.5rem; display:block; margin-bottom:0.5rem; color:var(--qt-green)"></i>
+                        No rejections
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@* ── Recent Ticks ── *@
+<div class="row g-3 mt-1">
+    <div class="col-12">
+        <div class="qt-card">
+            <div class="qt-card-header" style="color:var(--qt-blue)">
+                <i class="bi bi-graph-up-arrow"></i> Recent Ticks
+            </div>
+            <div class="qt-card-body p-0">
+                @if (ticks.Any())
+                {
+                    <div style="max-height:200px; overflow-y:auto">
+                        <table class="qt-table">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Ticker</th>
+                                    <th>Price</th>
+                                    <th>Volume</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var t in ticks.AsEnumerable().Reverse().Take(30))
+                                {
+                                    <tr>
+                                        <td class="mono">@t.Timestamp.ToString("HH:mm:ss")</td>
+                                        <td><strong>@t.Ticker</strong></td>
+                                        <td class="mono">@t.Price.ToString("F2")</td>
+                                        <td class="mono">@t.Volume</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div style="padding:1.5rem; text-align:center; color:var(--qt-text-dim)">
+                        No tick data
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<WatchlistEntry> watchlist = new();
+    private List<SignalContext> signals = new();
+    private List<RejectedSignal> rejections = new();
+    private List<TickData> ticks = new();
+
+    protected override void OnInitialized()
+    {
+        State.OnStateChanged += RefreshData;
+        RefreshData();
+    }
+
+    private void RefreshData()
+    {
+        watchlist = State.GetWatchlist();
+        signals = State.GetSignals();
+        rejections = State.GetRejections();
+        ticks = State.GetRecentTicks();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private string GetStatusBadgeClass(WatchlistEntry w)
+    {
+        if (w.IsRunning) return "qt-badge-yellow";
+        if (w.Status.Contains("Completed")) return "qt-badge-green";
+        if (w.Status.Contains("Error")) return "qt-badge-red";
+        return "qt-badge-blue";
+    }
+
+    public void Dispose()
+    {
+        State.OnStateChanged -= RefreshData;
+    }
+}

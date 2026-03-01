@@ -1,0 +1,143 @@
+.navbar-toggler {
+    appearance: none;
+    cursor: pointer;
+    width: 3.5rem;
+    height: 2.5rem;
+    color: white;
+    position: absolute;
+    top: 0.5rem;
+    right: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.55%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") no-repeat center/1.75rem rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+}
+
+.navbar-toggler:checked {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.top-row {
+    height: 3.5rem;
+    background-color: rgba(0, 0, 0, 0.3);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 0 1rem;
+}
+
+.navbar-brand {
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    text-decoration: none !important;
+}
+
+::deep .brand-icon {
+    font-size: 1.4rem;
+    line-height: 1;
+}
+
+::deep .brand-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+::deep .brand-main {
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: #e6edf3;
+    letter-spacing: -0.01em;
+}
+
+::deep .brand-sub {
+    font-size: 0.65rem;
+    color: #6e7681;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+::deep .nav-section-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: #484f58;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 1rem 1.25rem 0.35rem;
+}
+
+::deep .nav-icon {
+    font-size: 0.95rem;
+    width: 1.25rem;
+    text-align: center;
+    margin-right: 0.65rem;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.nav-item {
+    font-size: 0.87rem;
+    padding-bottom: 0.15rem;
+}
+
+.nav-item:first-of-type {
+    padding-top: 0.25rem;
+}
+
+.nav-item:last-of-type {
+    padding-bottom: 1rem;
+}
+
+.nav-item ::deep .nav-link {
+    color: #8b949e;
+    background: none;
+    border: none;
+    border-radius: 8px;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    line-height: 2.5rem;
+    width: 100%;
+    transition: all 0.15s;
+    font-weight: 450;
+}
+
+.nav-item ::deep a.active {
+    background: linear-gradient(135deg, rgba(88, 166, 255, 0.12), rgba(88, 166, 255, 0.06));
+    color: #58a6ff;
+    font-weight: 600;
+}
+
+.nav-item ::deep a.active .nav-icon {
+    opacity: 1;
+    color: #58a6ff;
+}
+
+.nav-item ::deep .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: #e6edf3;
+}
+
+.nav-item ::deep .nav-link:hover .nav-icon {
+    opacity: 1;
+}
+
+.nav-scrollable {
+    display: none;
+}
+
+.navbar-toggler:checked ~ .nav-scrollable {
+    display: block;
+}
+
+@media (min-width: 641px) {
+    .navbar-toggler {
+        display: none;
+    }
+
+    .nav-scrollable {
+        display: block;
+        height: calc(100vh - 3.5rem);
+        overflow-y: auto;
+    }
+}

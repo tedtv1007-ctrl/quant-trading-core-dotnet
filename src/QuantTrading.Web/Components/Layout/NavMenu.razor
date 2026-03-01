@@ -1,0 +1,51 @@
+﻿<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">
+            <span class="brand-icon">⚡</span>
+            <span class="brand-text">
+                <span class="brand-main">QuantTrading</span>
+                <span class="brand-sub">Trading Terminal</span>
+            </span>
+        </a>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="flex-column">
+        <div class="nav-section-label">OVERVIEW</div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <i class="bi bi-grid-1x2-fill nav-icon"></i> Dashboard
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="simulation">
+                <i class="bi bi-play-circle-fill nav-icon"></i> Simulation
+            </NavLink>
+        </div>
+
+        <div class="nav-section-label">DATA</div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="signals">
+                <i class="bi bi-lightning-charge-fill nav-icon"></i> Signal Log
+            </NavLink>
+        </div>
+
+        <div class="nav-section-label">JOURNAL</div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="trades">
+                <i class="bi bi-journal-text nav-icon"></i> Trade Journal
+            </NavLink>
+        </div>
+
+        <div class="nav-section-label">SETTINGS</div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="configuration">
+                <i class="bi bi-gear-fill nav-icon"></i> Configuration
+            </NavLink>
+        </div>
+    </nav>
+</div>

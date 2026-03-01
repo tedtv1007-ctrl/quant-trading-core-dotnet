@@ -1,0 +1,35 @@
+﻿@inherits LayoutComponentBase
+
+<div class="page">
+    <div class="sidebar">
+        <NavMenu />
+    </div>
+
+    <main>
+        <div class="top-row px-4">
+            <div class="d-flex align-items-center gap-3">
+                <span class="top-row-label"><i class="bi bi-clock"></i> @DateTime.Now.ToString("yyyy-MM-dd HH:mm")</span>
+                <span class="top-row-divider">|</span>
+                <span class="top-row-label"><i class="bi bi-cpu"></i> .NET 8</span>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <a href="https://developer.fugle.tw/" target="_blank" rel="noopener noreferrer" class="top-row-link">
+                    <i class="bi bi-box-arrow-up-right"></i> Fugle API
+                </a>
+                <a href="https://learn.microsoft.com/aspnet/core/" target="_blank" rel="noopener noreferrer" class="top-row-link">
+                    <i class="bi bi-info-circle"></i> Docs
+                </a>
+            </div>
+        </div>
+
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>
+
+<div id="blazor-error-ui">
+    An unhandled error has occurred.
+    <a href="" class="reload">Reload</a>
+    <a class="dismiss">🗙</a>
+</div>

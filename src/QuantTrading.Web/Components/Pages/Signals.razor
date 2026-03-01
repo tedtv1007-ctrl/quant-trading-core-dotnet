@@ -1,0 +1,270 @@
+@page "/signals"
+@using QuantTrading.Web.Services
+@using QuantTrading.Core.Models
+@inject TradingStateService State
+@rendermode InteractiveServer
+@implements IDisposable
+
+<PageTitle>Signal Log - QuantTrading</PageTitle>
+
+<div class="qt-page-title">
+    <i class="bi bi-lightning-charge-fill title-icon"></i> Signal & Rejection Log
+</div>
+
+@* ── Ticker Filter ── *@
+<div class="mb-3 d-flex align-items-center gap-2">
+    <label class="form-label mb-0" style="font-weight:600; font-size:0.82rem; color:var(--qt-text-muted)">
+        <i class="bi bi-funnel"></i> Filter:
+    </label>
+    <select class="form-select form-select-sm" style="width:auto" value="@selectedTicker" @onchange="OnTickerFilterChanged">
+        <option value="">All Tickers</option>
+        @foreach (var t in activeTickers)
+        {
+            <option value="@t">@t</option>
+        }
+    </select>
+    @if (!string.IsNullOrEmpty(selectedTicker))
+    {
+        <button class="btn btn-outline-secondary btn-sm" style="border-color:var(--qt-border); color:var(--qt-text-muted)" @onclick="ClearFilter">
+            <i class="bi bi-x-lg"></i> Clear
+        </button>
+    }
+</div>
+
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+        <button class="nav-link @(activeTab == "signals" ? "active" : "")" @onclick='() => activeTab = "signals"'>
+            <i class="bi bi-lightning-charge"></i> Accepted <span class="qt-badge qt-badge-green ms-1">@signals.Count</span>
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link @(activeTab == "rejections" ? "active" : "")" @onclick='() => activeTab = "rejections"'>
+            <i class="bi bi-x-octagon"></i> Rejected <span class="qt-badge qt-badge-red ms-1">@rejections.Count</span>
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link @(activeTab == "ticks" ? "active" : "")" @onclick='() => activeTab = "ticks"'>
+            <i class="bi bi-reception-4"></i> Ticks <span class="qt-badge qt-badge-blue ms-1">@ticks.Count</span>
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link @(activeTab == "bars" ? "active" : "")" @onclick='() => activeTab = "bars"'>
+            <i class="bi bi-bar-chart"></i> Bars <span class="qt-badge qt-badge-blue ms-1">@bars.Count</span>
+        </button>
+    </li>
+</ul>
+
+<div class="qt-card">
+    <div class="qt-card-body p-0">
+@if (activeTab == "signals")
+{
+    @if (signals.Any())
+    {
+        <div style="max-height:600px; overflow-y:auto">
+            <table class="qt-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Timestamp</th>
+                        <th>Strategy</th>
+                        <th>Order</th>
+                        <th>Ticker</th>
+                        <th>Entry</th>
+                        <th>StopLoss</th>
+                        <th>Size</th>
+                        <th>VolRatio</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{ int i = 0; }
+                    @foreach (var s in signals.AsEnumerable().Reverse())
+                    {
+                        i++;
+                        <tr>
+                            <td class="mono" style="color:var(--qt-text-dim)">@i</td>
+                            <td class="mono">@s.Timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff")</td>
+                            <td><span class="qt-badge @(s.Strategy == StrategyType.OpenGap ? "qt-badge-green" : "qt-badge-blue")">@s.Strategy</span></td>
+                            <td>@s.OrderType</td>
+                            <td><strong>@s.Ticker</strong></td>
+                            <td class="mono">@s.EntryPrice.ToString("F2")</td>
+                            <td class="mono">@s.StopLossPrice.ToString("F2")</td>
+                            <td class="mono">@s.PositionSize</td>
+                            <td class="mono">@s.VolumeRatio.ToString("F1")x</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div style="padding:3rem; text-align:center; color:var(--qt-text-dim)">
+            <i class="bi bi-inbox" style="font-size:2.5rem; display:block; margin-bottom:0.75rem"></i>
+            No signals recorded@(string.IsNullOrEmpty(selectedTicker) ? "." : $" for {selectedTicker}.")
+        </div>
+    }
+}
+else if (activeTab == "rejections")
+{
+    @if (rejections.Any())
+    {
+        <div style="max-height:600px; overflow-y:auto">
+            <table class="qt-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Timestamp</th>
+                        <th>Reason</th>
+                        <th>Strategy</th>
+                        <th>Ticker</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{ int j = 0; }
+                    @foreach (var r in rejections.AsEnumerable().Reverse())
+                    {
+                        j++;
+                        <tr>
+                            <td class="mono" style="color:var(--qt-text-dim)">@j</td>
+                            <td class="mono">@r.Timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff")</td>
+                            <td><span class="qt-badge qt-badge-red">@r.Reason</span></td>
+                            <td>@r.Strategy</td>
+                            <td><strong>@r.Ticker</strong></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div style="padding:3rem; text-align:center; color:var(--qt-text-dim)">
+            <i class="bi bi-check-circle" style="font-size:2.5rem; display:block; margin-bottom:0.75rem; color:var(--qt-green)"></i>
+            No rejections recorded@(string.IsNullOrEmpty(selectedTicker) ? "." : $" for {selectedTicker}.")
+        </div>
+    }
+}
+else if (activeTab == "ticks")
+{
+    @if (ticks.Any())
+    {
+        <div style="max-height:600px; overflow-y:auto">
+            <table class="qt-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Ticker</th>
+                        <th>Price</th>
+                        <th>Volume</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var t in ticks.AsEnumerable().Reverse())
+                    {
+                        <tr>
+                            <td class="mono">@t.Timestamp.ToString("HH:mm:ss.fff")</td>
+                            <td><strong>@t.Ticker</strong></td>
+                            <td class="mono">@t.Price.ToString("F2")</td>
+                            <td class="mono">@t.Volume</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div style="padding:3rem; text-align:center; color:var(--qt-text-dim)">
+            <i class="bi bi-reception-0" style="font-size:2.5rem; display:block; margin-bottom:0.75rem"></i>
+            No tick data@(string.IsNullOrEmpty(selectedTicker) ? "." : $" for {selectedTicker}.")
+        </div>
+    }
+}
+else if (activeTab == "bars")
+{
+    @if (bars.Any())
+    {
+        <div style="max-height:600px; overflow-y:auto">
+            <table class="qt-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Ticker</th>
+                        <th>Open</th>
+                        <th>High</th>
+                        <th>Low</th>
+                        <th>Close</th>
+                        <th>Volume</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var b in bars.AsEnumerable().Reverse())
+                    {
+                        <tr>
+                            <td class="mono">@b.Timestamp.ToString("HH:mm:ss")</td>
+                            <td><strong>@b.Ticker</strong></td>
+                            <td class="mono">@b.Open.ToString("F2")</td>
+                            <td class="mono">@b.High.ToString("F2")</td>
+                            <td class="mono">@b.Low.ToString("F2")</td>
+                            <td class="mono">@b.Close.ToString("F2")</td>
+                            <td class="mono">@b.Volume</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div style="padding:3rem; text-align:center; color:var(--qt-text-dim)">
+            <i class="bi bi-bar-chart" style="font-size:2.5rem; display:block; margin-bottom:0.75rem"></i>
+            No bar data@(string.IsNullOrEmpty(selectedTicker) ? "." : $" for {selectedTicker}.")
+        </div>
+    }
+}
+    </div>
+</div>
+
+@code {
+    private string activeTab = "signals";
+    private string selectedTicker = "";
+    private List<string> activeTickers = new();
+    private List<SignalContext> signals = new();
+    private List<RejectedSignal> rejections = new();
+    private List<TickData> ticks = new();
+    private List<BarData> bars = new();
+
+    protected override void OnInitialized()
+    {
+        State.OnStateChanged += RefreshData;
+        RefreshData();
+    }
+
+    private void RefreshData()
+    {
+        var filter = string.IsNullOrEmpty(selectedTicker) ? null : selectedTicker;
+        activeTickers = State.GetActiveTickers();
+        signals = State.GetSignals(filter);
+        rejections = State.GetRejections(filter);
+        ticks = State.GetRecentTicks(filter);
+        bars = State.GetRecentBars(filter);
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OnTickerFilterChanged(ChangeEventArgs e)
+    {
+        selectedTicker = e.Value?.ToString() ?? "";
+        RefreshData();
+    }
+
+    private void ClearFilter()
+    {
+        selectedTicker = "";
+        RefreshData();
+    }
+
+    public void Dispose()
+    {
+        State.OnStateChanged -= RefreshData;
+    }
+}

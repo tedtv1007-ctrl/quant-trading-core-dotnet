@@ -1,0 +1,79 @@
+## .NET
+bin/
+obj/
+out/
+
+## Secrets (含 API Key 的設定檔)
+appsettings.json
+appsettings.*.json
+!appsettings.template.json
+
+## User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+## VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+## Visual Studio
+.vs/
+*.csproj.user
+*.dbmdl
+*.jfm
+
+## Rider
+.idea/
+*.sln.iml
+
+## Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+## NuGet
+*.nupkg
+*.snupkg
+.nuget/
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+
+## Test Results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.TestAdapter.dll
+TestResult.xml
+coverage*.json
+coverage*.xml
+coverage*.info
+
+## Publish
+publish/
+
+## Misc
+*.log
+*.tmp
+*.temp
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+## Runtime Config Data (JSON file database)
+**/Data/trading-config.json
+**/Data/trade-journal.json

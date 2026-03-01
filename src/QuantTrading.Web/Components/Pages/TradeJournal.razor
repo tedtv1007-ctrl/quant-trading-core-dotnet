@@ -1,0 +1,502 @@
+@page "/trades"
+@using QuantTrading.Core.Models
+@using QuantTrading.Core.Interfaces
+@using System.Text
+@rendermode InteractiveServer
+@implements IDisposable
+@inject ITradeJournalStore JournalStore
+@inject IJSRuntime JS
+
+<PageTitle>Trade Journal - QuantTrading</PageTitle>
+
+<div class="qt-page-title">
+    <i class="bi bi-journal-text title-icon"></i> Trade Journal
+</div>
+<p style="color:var(--qt-text-muted); margin-top:-1rem; margin-bottom:1.5rem; font-size:0.85rem">
+    Record daily actual trades. Data is persisted to local storage.
+</p>
+
+<div class="row g-3">
+    @* ── Left: Input Form ── *@
+    <div class="col-lg-4">
+        <div class="qt-card">
+            <div class="qt-card-header" style="color:var(--qt-cyan)">
+                <i class="bi bi-plus-circle"></i> @(_editingId != null ? "Edit Trade" : "New Trade")
+            </div>
+            <div class="qt-card-body">
+                <div class="trade-form-field">
+                    <label>Trade Date</label>
+                    <input type="date" class="form-control form-control-sm"
+                           value="@_formDate.ToString("yyyy-MM-dd")" @onchange="e => _formDate = ParseDate(e)" />
+                </div>
+                <div class="trade-form-field">
+                    <label>Ticker</label>
+                    <input type="text" class="form-control form-control-sm" placeholder="e.g. 2330"
+                           value="@_formTicker" @onchange="e => _formTicker = ParseTicker(e)" />
+                </div>
+                <div class="trade-form-field">
+                    <label>Direction</label>
+                    <select class="form-select form-select-sm" value="@_formDirection"
+                            @onchange="e => _formDirection = ParseDirection(e)">
+                        <option value="Buy">Buy 買進</option>
+                        <option value="Sell">Sell 賣出</option>
+                    </select>
+                </div>
+                <div class="trade-form-field">
+                    <label>Price</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text">$</span>
+                        <input type="number" step="0.01" min="0" class="form-control form-control-sm"
+                               value="@_formPrice" @onchange="e => _formPrice = ParseDecimal(e)" />
+                    </div>
+                </div>
+                <div class="trade-form-field">
+                    <label>Quantity</label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" step="1" min="1" class="form-control form-control-sm"
+                               value="@_formQuantity" @onchange="e => _formQuantity = ParseInt(e)" />
+                        <span class="input-group-text">shares</span>
+                    </div>
+                </div>
+                <div class="trade-form-field">
+                    <label>Strategy</label>
+                    <select class="form-select form-select-sm" value="@(_formStrategy ?? "")"
+                            @onchange="e => _formStrategy = string.IsNullOrEmpty(e.Value?.ToString()) ? null : e.Value?.ToString()">
+                        <option value="">— None —</option>
+                        <option value="Strategy A">Strategy A (Pre-Market Gap)</option>
+                        <option value="Strategy B">Strategy B (Intraday Dip)</option>
+                        <option value="Manual">Manual 手動交易</option>
+                    </select>
+                </div>
+                <div class="trade-form-field">
+                    <label>Note</label>
+                    <input type="text" class="form-control form-control-sm" placeholder="Optional"
+                           value="@(_formNote ?? "")" @onchange="e => _formNote = string.IsNullOrWhiteSpace(e.Value?.ToString()) ? null : e.Value?.ToString()?.Trim()" />
+                </div>
+
+                <div class="d-flex gap-2 mt-3">
+                    <button class="btn btn-sm flex-fill" disabled="@_saving"
+                            style="background:var(--qt-green); color:#000; font-weight:600"
+                            @onclick="SaveTrade">
+                        @if (_saving)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-check-lg me-1"></i>
+                        }
+                        @(_editingId != null ? "Update" : "Add Trade")
+                    </button>
+                    @if (_editingId != null)
+                    {
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="CancelEdit">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    }
+                </div>
+
+                @if (!string.IsNullOrEmpty(_toastMessage))
+                {
+                    <div class="mt-2" style="font-size:0.8rem; color:@(_toastIsError ? "var(--qt-red)" : "var(--qt-green)")">
+                        <i class="bi @(_toastIsError ? "bi-exclamation-triangle" : "bi-check-circle") me-1"></i>@_toastMessage
+                    </div>
+                }
+            </div>
+        </div>
+
+        @* ── Daily Summary ── *@
+        @if (_trades.Count > 0)
+        {
+            var todayTrades = _trades.Where(t => t.TradeDate.Date == _filterDate.Date).ToList();
+            var buyAmt = todayTrades.Where(t => t.Direction == TradeDirection.Buy).Sum(t => t.Amount);
+            var sellAmt = todayTrades.Where(t => t.Direction == TradeDirection.Sell).Sum(t => t.Amount);
+
+            <div class="qt-card mt-3">
+                <div class="qt-card-header" style="color:var(--qt-yellow)">
+                    <i class="bi bi-bar-chart"></i> Day Summary
+                </div>
+                <div class="qt-card-body p-0">
+                    <table class="qt-table">
+                        <tbody>
+                            <tr>
+                                <td style="color:var(--qt-text-muted)">Trades</td>
+                                <td class="mono"><strong>@todayTrades.Count</strong></td>
+                            </tr>
+                            <tr>
+                                <td style="color:var(--qt-text-muted)">Buy Total</td>
+                                <td class="mono" style="color:var(--qt-red)"><strong>$@buyAmt.ToString("N0")</strong></td>
+                            </tr>
+                            <tr>
+                                <td style="color:var(--qt-text-muted)">Sell Total</td>
+                                <td class="mono" style="color:var(--qt-green)"><strong>$@sellAmt.ToString("N0")</strong></td>
+                            </tr>
+                            <tr>
+                                <td style="color:var(--qt-text-muted)">Net</td>
+                                <td class="mono" style="color:@(sellAmt - buyAmt >= 0 ? "var(--qt-green)" : "var(--qt-red)")">
+                                    <strong>$@((sellAmt - buyAmt).ToString("N0"))</strong>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    </div>
+
+    @* ── Right: Trade History ── *@
+    <div class="col-lg-8">
+        <div class="qt-card">
+            <div class="qt-card-header d-flex align-items-center justify-content-between" style="color:var(--qt-text)">
+                <span><i class="bi bi-list-ul"></i> Trade History</span>
+                <div class="d-flex align-items-center gap-2">
+                    <input type="date" class="form-control form-control-sm" style="max-width:160px; background:var(--qt-bg-surface); border-color:var(--qt-border); color:var(--qt-text); font-size:0.78rem"
+                           value="@_filterDate.ToString("yyyy-MM-dd")" @onchange="OnFilterDateChanged" />
+                    <button class="btn btn-sm btn-outline-secondary" style="font-size:0.75rem; padding:0.15rem 0.5rem" @onclick="ShowAllDates">
+                        All
+                    </button>
+                    <button class="btn btn-sm" style="font-size:0.75rem; padding:0.15rem 0.5rem; background:var(--qt-cyan); color:#000; font-weight:600"
+                            @onclick="ExportCsv" disabled="@_exporting">
+                        @if (_exporting)
+                        {
+                            <span class="spinner-border spinner-border-sm" style="width:0.7rem;height:0.7rem"></span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-download"></i>
+                        }
+                        CSV
+                    </button>
+                </div>
+            </div>
+            <div class="qt-card-body p-0">
+                @if (_filteredTrades.Count == 0)
+                {
+                    <div class="text-center py-5" style="color:var(--qt-text-muted)">
+                        <i class="bi bi-journal-x" style="font-size:2.5rem; opacity:0.3"></i>
+                        <div class="mt-2" style="font-size:0.85rem">No trades for this date</div>
+                    </div>
+                }
+                else
+                {
+                    <div style="max-height:600px; overflow-y:auto">
+                        <table class="qt-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Ticker</th>
+                                    <th>Dir</th>
+                                    <th style="text-align:right">Price</th>
+                                    <th style="text-align:right">Qty</th>
+                                    <th style="text-align:right">Amount</th>
+                                    <th>Strategy</th>
+                                    <th>Note</th>
+                                    <th style="text-align:center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var t in _filteredTrades)
+                                {
+                                    <tr>
+                                        <td class="mono" style="font-size:0.78rem">@t.TradeDate.ToString("MM/dd")</td>
+                                        <td><strong style="color:var(--qt-cyan)">@t.Ticker</strong></td>
+                                        <td>
+                                            <span class="qt-badge @(t.Direction == TradeDirection.Buy ? "badge-red" : "badge-green")">
+                                                @(t.Direction == TradeDirection.Buy ? "B" : "S")
+                                            </span>
+                                        </td>
+                                        <td class="mono" style="text-align:right">@t.Price.ToString("N2")</td>
+                                        <td class="mono" style="text-align:right">@t.Quantity.ToString("N0")</td>
+                                        <td class="mono" style="text-align:right; color:@(t.Direction == TradeDirection.Buy ? "var(--qt-red)" : "var(--qt-green)")">
+                                            $@t.Amount.ToString("N0")
+                                        </td>
+                                        <td style="font-size:0.78rem; color:var(--qt-text-muted)">@(t.Strategy ?? "—")</td>
+                                        <td style="font-size:0.78rem; color:var(--qt-text-muted); max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap"
+                                            title="@(t.Note ?? "")">@(t.Note ?? "—")</td>
+                                        <td style="text-align:center; white-space:nowrap">
+                                            <button class="btn btn-sm p-0 me-1" style="color:var(--qt-blue); font-size:0.85rem"
+                                                    title="Edit" @onclick="() => EditTrade(t)">
+                                                <i class="bi bi-pencil-square"></i>
+                                            </button>
+                                            <button class="btn btn-sm p-0" style="color:var(--qt-red); font-size:0.85rem"
+                                                    title="Delete" @onclick="() => DeleteTrade(t.Id)">
+                                                <i class="bi bi-trash3"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    // ── Data ─────────────────────────────────────────────────────
+    private List<TradeRecord> _trades = new();
+    private List<TradeRecord> _filteredTrades = new();
+    private DateTime _filterDate = DateTime.Today;
+    private bool _showAll;
+
+    // ── Form fields ──────────────────────────────────────────────
+    private string? _editingId;
+    private DateTime _formDate = DateTime.Today;
+    private string _formTicker = "";
+    private TradeDirection _formDirection = TradeDirection.Buy;
+    private decimal _formPrice;
+    private int _formQuantity = 1000;
+    private string? _formStrategy;
+    private string? _formNote;
+
+    // ── UI state ─────────────────────────────────────────────────
+    private bool _saving;
+    private bool _exporting;
+    private bool _disposed;
+    private string? _toastMessage;
+    private bool _toastIsError;
+    private System.Threading.Timer? _toastTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTrades();
+    }
+
+    private async Task LoadTrades()
+    {
+        _trades = await JournalStore.GetAllAsync();
+        ApplyFilter();
+    }
+
+    private void ApplyFilter()
+    {
+        if (_showAll)
+        {
+            _filteredTrades = _trades
+                .OrderByDescending(t => t.TradeDate).ThenByDescending(t => t.CreatedAt)
+                .ToList();
+        }
+        else
+        {
+            _filteredTrades = _trades
+                .Where(t => t.TradeDate.Date == _filterDate.Date)
+                .OrderByDescending(t => t.CreatedAt)
+                .ToList();
+        }
+    }
+
+    private async Task SaveTrade()
+    {
+        if (string.IsNullOrWhiteSpace(_formTicker))
+        {
+            ShowToast("Ticker is required!", true);
+            return;
+        }
+        if (_formPrice <= 0)
+        {
+            ShowToast("Price must be > 0!", true);
+            return;
+        }
+        if (_formQuantity <= 0)
+        {
+            ShowToast("Quantity must be > 0!", true);
+            return;
+        }
+
+        _saving = true;
+        StateHasChanged();
+
+        try
+        {
+            if (_editingId != null)
+            {
+                // Update
+                var record = _trades.FirstOrDefault(t => t.Id == _editingId);
+                if (record != null)
+                {
+                    record.TradeDate = _formDate;
+                    record.Ticker = _formTicker.ToUpper();
+                    record.Direction = _formDirection;
+                    record.Price = _formPrice;
+                    record.Quantity = _formQuantity;
+                    record.Strategy = _formStrategy;
+                    record.Note = _formNote;
+                    await JournalStore.UpdateAsync(record);
+                    ShowToast("Trade updated!", false);
+                }
+                _editingId = null;
+            }
+            else
+            {
+                // Add
+                var record = new TradeRecord
+                {
+                    TradeDate = _formDate,
+                    Ticker = _formTicker.ToUpper(),
+                    Direction = _formDirection,
+                    Price = _formPrice,
+                    Quantity = _formQuantity,
+                    Strategy = _formStrategy,
+                    Note = _formNote,
+                };
+                await JournalStore.AddAsync(record);
+                ShowToast("Trade added!", false);
+            }
+
+            await LoadTrades();
+            ResetForm();
+        }
+        catch (Exception ex)
+        {
+            ShowToast($"Error: {ex.Message}", true);
+        }
+        finally
+        {
+            _saving = false;
+            StateHasChanged();
+        }
+    }
+
+    private void EditTrade(TradeRecord t)
+    {
+        _editingId = t.Id;
+        _formDate = t.TradeDate;
+        _formTicker = t.Ticker;
+        _formDirection = t.Direction;
+        _formPrice = t.Price;
+        _formQuantity = t.Quantity;
+        _formStrategy = t.Strategy;
+        _formNote = t.Note;
+    }
+
+    private async Task DeleteTrade(string id)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", "確定刪除這筆交易紀錄？");
+        if (!confirmed) return;
+
+        await JournalStore.DeleteAsync(id);
+        await LoadTrades();
+        ShowToast("Trade deleted.", false);
+    }
+
+    private void CancelEdit()
+    {
+        _editingId = null;
+        ResetForm();
+    }
+
+    private void ResetForm()
+    {
+        _formTicker = "";
+        _formPrice = 0;
+        _formQuantity = 1000;
+        _formDirection = TradeDirection.Buy;
+        _formStrategy = null;
+        _formNote = null;
+        // Keep _formDate as-is for quick sequential entry
+    }
+
+    private void OnFilterDateChanged(ChangeEventArgs e)
+    {
+        _filterDate = ParseDate(e);
+        _showAll = false;
+        ApplyFilter();
+    }
+
+    private void ShowAllDates()
+    {
+        _showAll = true;
+        ApplyFilter();
+    }
+
+    private async Task ExportCsv()
+    {
+        _exporting = true;
+        StateHasChanged();
+
+        try
+        {
+            // 匯出當前篩選範圍：若為 All 則匯出全部，否則匯出該日
+            DateTime? from = _showAll ? null : _filterDate;
+            DateTime? to = _showAll ? null : _filterDate;
+            var csv = await JournalStore.ExportCsvAsync(from, to);
+
+            if (string.IsNullOrWhiteSpace(csv) || csv.Split('\n').Length <= 2)
+            {
+                ShowToast("No data to export.", true);
+                return;
+            }
+
+            var fileName = _showAll
+                ? $"trade-journal-all-{DateTime.UtcNow:yyyyMMdd}.csv"
+                : $"trade-journal-{_filterDate:yyyyMMdd}.csv";
+
+            // 透過 JS Interop 觸發瀏覽器下載
+            var bytes = Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(csv)).ToArray();
+            await JS.InvokeVoidAsync("downloadFileFromBytes", fileName, "text/csv", bytes);
+
+            ShowToast($"Exported {_filteredTrades.Count} trades.", false);
+        }
+        catch (Exception ex)
+        {
+            ShowToast($"Export failed: {ex.Message}", true);
+        }
+        finally
+        {
+            _exporting = false;
+            StateHasChanged();
+        }
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────
+
+    private void ShowToast(string message, bool isError)
+    {
+        _toastMessage = message;
+        _toastIsError = isError;
+        _toastTimer?.Dispose();
+        _toastTimer = new System.Threading.Timer(_ =>
+        {
+            if (_disposed) return;
+            _toastMessage = null;
+            InvokeAsync(StateHasChanged);
+        }, null, 3000, Timeout.Infinite);
+    }
+
+    private static DateTime ParseDate(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var d)) return d;
+        return DateTime.Today;
+    }
+
+    private static string ParseTicker(ChangeEventArgs e)
+    {
+        return e.Value?.ToString()?.Trim().ToUpper() ?? "";
+    }
+
+    private static TradeDirection ParseDirection(ChangeEventArgs e)
+    {
+        if (Enum.TryParse<TradeDirection>(e.Value?.ToString(), out var d)) return d;
+        return TradeDirection.Buy;
+    }
+
+    private static decimal ParseDecimal(ChangeEventArgs e)
+    {
+        if (decimal.TryParse(e.Value?.ToString(), out var v)) return v;
+        return 0;
+    }
+
+    private static int ParseInt(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var v)) return v;
+        return 0;
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        _toastTimer?.Dispose();
+    }
+}

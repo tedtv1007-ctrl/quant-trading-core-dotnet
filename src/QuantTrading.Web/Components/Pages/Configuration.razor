@@ -1,0 +1,460 @@
+@page "/configuration"
+@using QuantTrading.Core.Models
+@using QuantTrading.Core.Interfaces
+@rendermode InteractiveServer
+@implements IDisposable
+@inject TradingConfiguration Config
+@inject IConfigurationStore Store
+
+<PageTitle>Configuration - QuantTrading</PageTitle>
+
+<div class="qt-page-title">
+    <i class="bi bi-gear-fill title-icon"></i> Strategy & Risk Configuration
+</div>
+<p style="color:var(--qt-text-muted); margin-top:-1rem; margin-bottom:1.5rem; font-size:0.85rem">
+    Edit strategy parameters and risk management settings. Changes are persisted to local storage.
+</p>
+
+@* ── Save / Reset 操作列 ── *@
+<div class="d-flex gap-2 mb-3">
+    <button class="btn btn-sm px-3 py-1" style="background:var(--qt-green); color:#000; font-weight:600"
+            @onclick="SaveConfig" disabled="@_saving">
+        @if (_saving)
+        {
+            <span class="spinner-border spinner-border-sm me-1"></span>
+        }
+        else
+        {
+            <i class="bi bi-save me-1"></i>
+        }
+        Save All
+    </button>
+    <button class="btn btn-sm btn-outline-secondary px-3 py-1" @onclick="ResetToDefaults">
+        <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Defaults
+    </button>
+    @if (!string.IsNullOrEmpty(_toastMessage))
+    {
+        <span class="ms-2 align-self-center" style="font-size:0.8rem; color:@(_toastIsError ? "var(--qt-red)" : "var(--qt-green)")">
+            <i class="bi @(_toastIsError ? "bi-exclamation-triangle" : "bi-check-circle") me-1"></i>@_toastMessage
+        </span>
+    }
+</div>
+
+<div class="row g-3">
+    @* ── Strategy A: Pre-Market Gap ── *@
+    <div class="col-md-4">
+        <div class="qt-card">
+            <div class="qt-card-header" style="color:var(--qt-green)">
+                <i class="bi bi-sunrise"></i> Strategy A: Pre-Market Gap
+                <div style="font-size:0.7rem; text-transform:none; letter-spacing:0; font-weight:400; color:var(--qt-text-muted); margin-top:2px">開盤試搓策略</div>
+            </div>
+            <div class="qt-card-body">
+                <div class="config-field">
+                    <label>Monitor Start</label>
+                    <input type="time" step="1" class="form-control form-control-sm"
+                           value="@FormatTime(_gapMonitorStart)" @onchange="e => _gapMonitorStart = ParseTime(e)" />
+                </div>
+                <div class="config-field">
+                    <label>Monitor End</label>
+                    <input type="time" step="1" class="form-control form-control-sm"
+                           value="@FormatTime(_gapMonitorEnd)" @onchange="e => _gapMonitorEnd = ParseTime(e)" />
+                </div>
+                <div class="config-field">
+                    <label>Execution Time</label>
+                    <input type="time" step="1" class="form-control form-control-sm"
+                           value="@FormatTime(_gapExecutionTime)" @onchange="e => _gapExecutionTime = ParseTime(e)" />
+                </div>
+                <div class="config-field">
+                    <label>Gap Strength %</label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" step="0.1" min="0" max="100" class="form-control form-control-sm"
+                               value="@(_gapStrength)" @onchange="e => _gapStrength = ParseDecimal(e)" />
+                        <span class="input-group-text">%</span>
+                    </div>
+                </div>
+                <div class="config-field">
+                    <label>Fakeout Pullback %</label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" step="0.1" min="0" max="100" class="form-control form-control-sm"
+                               value="@(_gapFakeout)" @onchange="e => _gapFakeout = ParseDecimal(e)" />
+                        <span class="input-group-text">%</span>
+                    </div>
+                </div>
+                <div class="config-field">
+                    <label>Stop Loss Offset %</label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" step="0.1" min="0" max="100" class="form-control form-control-sm"
+                               value="@(_gapStopLoss)" @onchange="e => _gapStopLoss = ParseDecimal(e)" />
+                        <span class="input-group-text">%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* ── Strategy B: Intraday Dip ── *@
+    <div class="col-md-4">
+        <div class="qt-card">
+            <div class="qt-card-header" style="color:var(--qt-blue)">
+                <i class="bi bi-graph-down-arrow"></i> Strategy B: Intraday Dip
+                <div style="font-size:0.7rem; text-transform:none; letter-spacing:0; font-weight:400; color:var(--qt-text-muted); margin-top:2px">盤中低接反彈策略</div>
+            </div>
+            <div class="qt-card-body">
+                <div class="config-field">
+                    <label>Active Start</label>
+                    <input type="time" step="1" class="form-control form-control-sm"
+                           value="@FormatTime(_dipActiveStart)" @onchange="e => _dipActiveStart = ParseTime(e)" />
+                </div>
+                <div class="config-field">
+                    <label>Active End</label>
+                    <input type="time" step="1" class="form-control form-control-sm"
+                           value="@FormatTime(_dipActiveEnd)" @onchange="e => _dipActiveEnd = ParseTime(e)" />
+                </div>
+                <div class="config-field">
+                    <label>Dip Threshold %</label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" step="0.1" min="0" max="100" class="form-control form-control-sm"
+                               value="@(_dipThreshold)" @onchange="e => _dipThreshold = ParseDecimal(e)" />
+                        <span class="input-group-text">%</span>
+                    </div>
+                </div>
+                <div class="config-field">
+                    <label>Volume Spike ×</label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" step="0.1" min="0.1" max="100" class="form-control form-control-sm"
+                               value="@(_dipVolumeSpike)" @onchange="e => _dipVolumeSpike = ParseDouble(e)" />
+                        <span class="input-group-text">×</span>
+                    </div>
+                </div>
+                <div class="config-field">
+                    <label>Lookback Bars</label>
+                    <input type="number" step="1" min="1" max="100" class="form-control form-control-sm"
+                           value="@(_dipLookbackBars)" @onchange="e => _dipLookbackBars = ParseInt(e)" />
+                </div>
+                <div class="config-field">
+                    <label>Stop Loss Offset %</label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" step="0.1" min="0" max="100" class="form-control form-control-sm"
+                               value="@(_dipStopLoss)" @onchange="e => _dipStopLoss = ParseDecimal(e)" />
+                        <span class="input-group-text">%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* ── Risk Management + Position Formula ── *@
+    <div class="col-md-4">
+        <div class="qt-card mb-3">
+            <div class="qt-card-header" style="color:var(--qt-red)">
+                <i class="bi bi-shield-check"></i> Risk Management
+                <div style="font-size:0.7rem; text-transform:none; letter-spacing:0; font-weight:400; color:var(--qt-text-muted); margin-top:2px">風控參數</div>
+            </div>
+            <div class="qt-card-body">
+                <div class="config-field">
+                    <label>Risk Per Trade</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text">$</span>
+                        <input type="number" step="100" min="0" class="form-control form-control-sm"
+                               value="@(_riskPerTrade)" @onchange="e => _riskPerTrade = ParseDecimal(e)" />
+                        <span class="input-group-text">TWD</span>
+                    </div>
+                </div>
+                <div class="config-field">
+                    <label>Max Daily Loss</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text">$</span>
+                        <input type="number" step="100" min="0" class="form-control form-control-sm"
+                               value="@(_maxDailyLoss)" @onchange="e => _maxDailyLoss = ParseDecimal(e)" />
+                        <span class="input-group-text">TWD</span>
+                    </div>
+                </div>
+                <div class="config-field">
+                    <label>Max Daily Trades</label>
+                    <input type="number" step="1" min="1" max="100" class="form-control form-control-sm"
+                           value="@(_maxDailyTrades)" @onchange="e => _maxDailyTrades = ParseInt(e)" />
+                </div>
+            </div>
+        </div>
+
+        <div class="qt-card">
+            <div class="qt-card-header" style="color:var(--qt-purple)">
+                <i class="bi bi-calculator"></i> Position Size Formula
+            </div>
+            <div class="qt-card-body">
+                <code style="display:block; font-size:0.9em; padding:0.75rem; background:var(--qt-bg-surface); border-radius:var(--qt-radius-sm); color:var(--qt-cyan); font-family:'JetBrains Mono',monospace; margin-bottom:0.5rem">
+                    Size = RiskPerTrade / |Entry - StopLoss|
+                </code>
+                <p style="color:var(--qt-text-muted); font-size:0.8rem; margin-bottom:0">
+                    Example: Entry=600, StopLoss=594<br />
+                    Size = @_riskPerTrade.ToString("N0") / (600-594) = <strong style="color:var(--qt-text)">@(((int)(_riskPerTrade / 6m))) shares</strong>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* ── Strategy Timeline ── *@
+<div class="row g-3 mt-1">
+    <div class="col-12">
+        <div class="qt-card">
+            <div class="qt-card-header" style="color:var(--qt-yellow)">
+                <i class="bi bi-clock-history"></i> Strategy Timeline
+            </div>
+            <div class="qt-card-body">
+                <div class="qt-timeline">
+                    <div class="qt-timeline-block" style="flex:1; background:rgba(0,210,106,0.15); color:var(--qt-green)">
+                        <strong>Strategy A</strong>
+                        <div>@FormatTime(_gapMonitorStart) → @FormatTime(_gapMonitorEnd)</div>
+                        <small>試搓監控</small>
+                    </div>
+                    <div class="qt-timeline-block" style="flex:0.3; background:rgba(240,180,41,0.2); color:var(--qt-yellow)">
+                        <strong>⚡</strong>
+                        <div>@FormatTime(_gapExecutionTime)</div>
+                        <small>送單</small>
+                    </div>
+                    <div class="qt-timeline-block" style="flex:3; background:rgba(88,166,255,0.12); color:var(--qt-blue)">
+                        <strong>Strategy B</strong>
+                        <div>@FormatTime(_dipActiveStart) → @FormatTime(_dipActiveEnd)</div>
+                        <small>盤中低接反彈</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    // ── Strategy A fields ────────────────────────────────────────
+    private TimeSpan _gapMonitorStart;
+    private TimeSpan _gapMonitorEnd;
+    private TimeSpan _gapExecutionTime;
+    private decimal _gapStrength;
+    private decimal _gapFakeout;
+    private decimal _gapStopLoss;
+
+    // ── Strategy B fields ────────────────────────────────────────
+    private TimeSpan _dipActiveStart;
+    private TimeSpan _dipActiveEnd;
+    private decimal _dipThreshold;
+    private double _dipVolumeSpike;
+    private int _dipLookbackBars;
+    private decimal _dipStopLoss;
+
+    // ── Risk fields ──────────────────────────────────────────────
+    private decimal _riskPerTrade;
+    private decimal _maxDailyLoss;
+    private int _maxDailyTrades;
+
+    // ── UI state ─────────────────────────────────────────────────
+    private bool _saving;
+    private string? _toastMessage;
+    private bool _toastIsError;
+    private System.Threading.Timer? _toastTimer;
+    private bool _disposed;
+
+    protected override void OnInitialized()
+    {
+        LoadFromConfig();
+    }
+
+    private void LoadFromConfig()
+    {
+        // Strategy A — 顯示為百分比 (0.01 → 1.0)
+        _gapMonitorStart = Config.GapConfig.MonitorStart;
+        _gapMonitorEnd = Config.GapConfig.MonitorEnd;
+        _gapExecutionTime = Config.GapConfig.ExecutionTime;
+        _gapStrength = Config.GapConfig.GapStrengthPercent * 100;
+        _gapFakeout = Config.GapConfig.FakeoutPullbackPercent * 100;
+        _gapStopLoss = Config.GapConfig.StopLossOffsetPercent * 100;
+
+        // Strategy B
+        _dipActiveStart = Config.DipConfig.ActiveStart;
+        _dipActiveEnd = Config.DipConfig.ActiveEnd;
+        _dipThreshold = Config.DipConfig.DipThresholdPercent * 100;
+        _dipVolumeSpike = Config.DipConfig.VolumeSpikeMultiplier;
+        _dipLookbackBars = Config.DipConfig.VolumeLookbackBars;
+        _dipStopLoss = Config.DipConfig.StopLossOffsetPercent * 100;
+
+        // Risk
+        _riskPerTrade = Config.RiskConfig.RiskPerTrade;
+        _maxDailyLoss = Config.RiskConfig.MaxDailyLoss;
+        _maxDailyTrades = Config.RiskConfig.MaxDailyTrades;
+    }
+
+    private async Task SaveConfig()
+    {
+        _saving = true;
+        _toastMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            // ── 業務邏輯驗證 ──────────────────────────────────────
+            if (_gapMonitorStart >= _gapMonitorEnd)
+            {
+                ShowToast("Monitor Start must be before Monitor End.", true);
+                return;
+            }
+            if (_gapMonitorEnd >= _gapExecutionTime)
+            {
+                ShowToast("Monitor End must be before Execution Time.", true);
+                return;
+            }
+            if (_dipActiveStart >= _dipActiveEnd)
+            {
+                ShowToast("Active Start must be before Active End.", true);
+                return;
+            }
+            if (_gapStrength <= 0 || _gapFakeout <= 0 || _gapStopLoss <= 0 ||
+                _dipThreshold <= 0 || _dipStopLoss <= 0)
+            {
+                ShowToast("Percentage values must be greater than 0.", true);
+                return;
+            }
+            if (_dipVolumeSpike <= 0)
+            {
+                ShowToast("Volume Spike multiplier must be greater than 0.", true);
+                return;
+            }
+            if (_dipLookbackBars < 1)
+            {
+                ShowToast("Lookback Bars must be at least 1.", true);
+                return;
+            }
+            if (_riskPerTrade <= 0 || _maxDailyLoss <= 0)
+            {
+                ShowToast("Risk and loss values must be greater than 0.", true);
+                return;
+            }
+            if (_maxDailyTrades < 1)
+            {
+                ShowToast("Max Daily Trades must be at least 1.", true);
+                return;
+            }
+            if (_riskPerTrade > _maxDailyLoss)
+            {
+                ShowToast("Risk Per Trade should not exceed Max Daily Loss.", true);
+                return;
+            }
+
+            // 從表單值建立新 record 寫回 TradingConfiguration
+            Config.GapConfig = new PreMarketGapConfig
+            {
+                MonitorStart = _gapMonitorStart,
+                MonitorEnd = _gapMonitorEnd,
+                ExecutionTime = _gapExecutionTime,
+                GapStrengthPercent = _gapStrength / 100,
+                FakeoutPullbackPercent = _gapFakeout / 100,
+                StopLossOffsetPercent = _gapStopLoss / 100,
+            };
+
+            Config.DipConfig = new IntradayDipConfig
+            {
+                ActiveStart = _dipActiveStart,
+                ActiveEnd = _dipActiveEnd,
+                DipThresholdPercent = _dipThreshold / 100,
+                VolumeSpikeMultiplier = _dipVolumeSpike,
+                VolumeLookbackBars = _dipLookbackBars,
+                StopLossOffsetPercent = _dipStopLoss / 100,
+            };
+
+            Config.RiskConfig = new RiskConfig
+            {
+                RiskPerTrade = _riskPerTrade,
+                MaxDailyLoss = _maxDailyLoss,
+                MaxDailyTrades = _maxDailyTrades,
+            };
+
+            // 持久化到 JSON 檔案
+            await Store.SaveAsync(Config);
+            Config.NotifyChanged();
+
+            ShowToast("Settings saved successfully!", false);
+        }
+        catch (Exception ex)
+        {
+            ShowToast($"Save failed: {ex.Message}", true);
+        }
+        finally
+        {
+            _saving = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ResetToDefaults()
+    {
+        // 重設為預設值 (不自動儲存，需手動按 Save)
+        var gap = new PreMarketGapConfig();
+        var dip = new IntradayDipConfig();
+        var risk = new RiskConfig();
+
+        _gapMonitorStart = gap.MonitorStart;
+        _gapMonitorEnd = gap.MonitorEnd;
+        _gapExecutionTime = gap.ExecutionTime;
+        _gapStrength = gap.GapStrengthPercent * 100;
+        _gapFakeout = gap.FakeoutPullbackPercent * 100;
+        _gapStopLoss = gap.StopLossOffsetPercent * 100;
+
+        _dipActiveStart = dip.ActiveStart;
+        _dipActiveEnd = dip.ActiveEnd;
+        _dipThreshold = dip.DipThresholdPercent * 100;
+        _dipVolumeSpike = dip.VolumeSpikeMultiplier;
+        _dipLookbackBars = dip.VolumeLookbackBars;
+        _dipStopLoss = dip.StopLossOffsetPercent * 100;
+
+        _riskPerTrade = risk.RiskPerTrade;
+        _maxDailyLoss = risk.MaxDailyLoss;
+        _maxDailyTrades = risk.MaxDailyTrades;
+
+        ShowToast("Reset to defaults — press Save to persist.", false);
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────
+
+    private void ShowToast(string message, bool isError)
+    {
+        _toastMessage = message;
+        _toastIsError = isError;
+        _toastTimer?.Dispose();
+        _toastTimer = new System.Threading.Timer(_ =>
+        {
+            if (_disposed) return;
+            _toastMessage = null;
+            InvokeAsync(StateHasChanged);
+        }, null, 4000, Timeout.Infinite);
+    }
+
+    private static string FormatTime(TimeSpan ts) => ts.ToString(@"hh\:mm\:ss");
+
+    private static TimeSpan ParseTime(ChangeEventArgs e)
+    {
+        if (TimeSpan.TryParse(e.Value?.ToString(), out var ts)) return ts;
+        return TimeSpan.Zero;
+    }
+
+    private static decimal ParseDecimal(ChangeEventArgs e)
+    {
+        if (decimal.TryParse(e.Value?.ToString(), out var v)) return v;
+        return 0;
+    }
+
+    private static double ParseDouble(ChangeEventArgs e)
+    {
+        if (double.TryParse(e.Value?.ToString(), out var v)) return v;
+        return 0;
+    }
+
+    private static int ParseInt(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var v)) return v;
+        return 0;
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        _toastTimer?.Dispose();
+    }
+}

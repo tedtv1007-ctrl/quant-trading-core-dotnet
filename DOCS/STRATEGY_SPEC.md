@@ -3,7 +3,7 @@
 ## Role & Context
 - **Role:** Senior Quantitative System Architect & C# Developer
 - **Objective:** Develop a high-frequency/day-trading auxiliary system.
-- **Architecture:** Event-Driven Architecture (EDA), C# .NET 8 Worker Service, gRPC.
+- **Architecture:** Event-Driven Architecture (EDA), C# .NET 8 Blazor Server, REST API.
 
 ## Phase 1: Strategy Logic Definition
 
@@ -22,7 +22,7 @@
 - **Action:** Confirm trend reversal (next tick up) -> Limit Buy.
 
 ## Phase 2: Risk Calculation
-- **Constraint:** Max 5 Type-A orders per day.
+- **Constraint:** Max 5 orders per day (all strategy types combined).
 - **Single Stop Loss:** 1,100 TWD.
 - **Position Size Calculation:** `PositionSize = 1100 / (EntryPrice - StopLossPrice)`.
 - **Global Stop:** Reject if daily loss > MaxDailyLoss or trades >= 5.
