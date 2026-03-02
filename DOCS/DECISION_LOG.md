@@ -2,6 +2,12 @@
 
 This log records architectural decisions, logic pivots, and implementation details to maintain continuity across development sessions. (Adopted from Claude-Mem 3-layer pattern).
 
+## [2026-03-02] Phase 4: Market Data Consumer Implementation
+- **Decision:** Implement \`MarketDataConsumer\` and \`MarketDataMapper\` for gRPC stream ingestion.
+- **Reasoning:** Proactive decision to connect gRPC market data streams directly to the strategy engine.
+- **Impact:** Enabled real-time processing of Ticks and Bars. Transitioned from manual simulation to a reactive gRPC-driven model.
+- **Components:** \`MarketDataConsumer.cs\`, \`MarketDataMapper.cs\`, and updated \`TradingWorker.cs\`.
+
 ## [2026-03-02] Phase 4: Worker Service Architecture Implementation
 - **Decision:** Implement the `QuantTrading.Worker` project as the central execution host.
 - **Reasoning:** Proactive decision to bridge strategy logic with gRPC event streams.
