@@ -2,11 +2,15 @@
 
 This log records architectural decisions, logic pivots, and implementation details to maintain continuity across development sessions. (Adopted from Claude-Mem 3-layer pattern).
 
+## [2026-03-02] Phase 4: Worker Service Architecture Implementation
+- **Decision:** Implement the `QuantTrading.Worker` project as the central execution host.
+- **Reasoning:** Proactive decision to bridge strategy logic with gRPC event streams.
+- **Impact:** Sets up Dependency Injection (DI) and lifecycle management for the `StrategyEngine`.
+
 ## [2026-03-01] Phase 3: gRPC Service Definition
-- **Decision:** Define gRPC services for \`MarketDataService\` and \`SignalService\`.
+- **Decision:** Define gRPC services for `MarketDataService` and `SignalService`.
 - **Reasoning:** Ted's requirement for EDA and .NET 8 Worker Service communication.
-- **Impact:** gRPC allows low-latency, strongly-typed streaming of ticks and bars, as well as real-time signal notification to trading clients.
-- **Implemented:** \`market_data.proto\` and \`trading_signal.proto\` created in \`src/QuantTrading.Grpc/Protos\`.
+- **Impact:** gRPC allows low-latency, strongly-typed streaming of ticks and bars.
 
 ## [2026-02-28] Initial Project Kick-off
 - **Decision:** Use C# .NET 8 Worker Service + gRPC.
