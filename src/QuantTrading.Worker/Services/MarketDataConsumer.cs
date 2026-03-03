@@ -28,17 +28,28 @@ public class MarketDataConsumer
 
         _logger.LogInformation("Started subscribing to {ticker} ({type})", ticker, type);
 
-        await foreach (var update in call.ResponseStream.ReadAllAsync(ct))
+        try 
         {
-            switch (update.UpdateCase)
+            await foreach (var update in call.ResponseStream.ReadAllAsync(ct))
             {
-                case MarketDataUpdate.UpdateOneofCase.Tick:
-                    await _strategyEngine.ProcessTickAsync(update.Tick.ToInternal());
-                    break;
-                case MarketDataUpdate.UpdateOneofCase.Bar:
-                    await _strategyEngine.ProcessBarAsync(update.Bar.ToInternal());
-                    break;
+                switch (update.UpdateCase)
+                {
+                    case MarketDataUpdate.UpdateOneofCase.Tick:
+                        await _strategyEngine.ProcessTickAsync(update.Tick.ToInternal());
+                        break;
+                    case MarketDataUpdate.UpdateOneofCase.Bar:
+                        await _strategyEngine.ProcessBarAsync(update.Bar.ToInternal());
+                        break;
+                }
             }
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.Cancelled)
+        {
+            _logger.LogWarning("Market Data Subscription for {ticker} was cancelled.", ticker);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error consuming market data for {ticker}", ticker);
         }
     }
 }

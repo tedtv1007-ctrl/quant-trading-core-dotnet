@@ -2,16 +2,20 @@
 
 This log records architectural decisions, logic pivots, and implementation details to maintain continuity across development sessions. (Adopted from Claude-Mem 3-layer pattern).
 
-## [2026-03-02] Phase 4: Market Data Consumer Implementation
-- **Decision:** Implement \`MarketDataConsumer\` and \`MarketDataMapper\` for gRPC stream ingestion.
-- **Reasoning:** Proactive decision to connect gRPC market data streams directly to the strategy engine.
-- **Impact:** Enabled real-time processing of Ticks and Bars. Transitioned from manual simulation to a reactive gRPC-driven model.
-- **Components:** \`MarketDataConsumer.cs\`, \`MarketDataMapper.cs\`, and updated \`TradingWorker.cs\`.
+## [2026-03-02] Phase 4: Full Documentation & README Update
+- **Decision:** Write comprehensive `README.md` to document strategy A/B and system architecture.
+- **Reasoning:** Maintain clarity as the project scales.
+- **Impact:** Clear onboarding for any developer (or AI) joining the project.
 
-## [2026-03-02] Phase 4: Worker Service Architecture Implementation
-- **Decision:** Implement the `QuantTrading.Worker` project as the central execution host.
-- **Reasoning:** Proactive decision to bridge strategy logic with gRPC event streams.
-- **Impact:** Sets up Dependency Injection (DI) and lifecycle management for the `StrategyEngine`.
+## [2026-03-02] Phase 4: Signal Publisher Implementation
+- **Decision:** Implement `SignalPublisher.cs` to bridge `StrategyEngine` signals with gRPC service clients.
+- **Reasoning:** Completing the "Event-Driven" feedback loop.
+- **Impact:** Signals can now be emitted to trading execution bots in real-time.
+
+## [2026-03-02] Phase 4: Full Strategy B Logic Implementation
+- **Decision:** Fully implement Strategy B (Intraday Dip + Volume Surge) and VWAP logic in `StrategyEngine.cs`.
+- **Reasoning:** Proactive decision by Milk after Ted's "開工吧" instruction.
+- **Impact:** The strategy engine is now logically complete for both Strategy A and B.
 
 ## [2026-03-01] Phase 3: gRPC Service Definition
 - **Decision:** Define gRPC services for `MarketDataService` and `SignalService`.
