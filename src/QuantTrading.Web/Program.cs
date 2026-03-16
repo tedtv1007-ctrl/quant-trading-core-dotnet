@@ -1,6 +1,7 @@
 using QuantTrading.Core;
 using QuantTrading.Core.Interfaces;
 using QuantTrading.Core.Models;
+using QuantTrading.Core.Services;
 using QuantTrading.Infrastructure;
 using QuantTrading.Infrastructure.Configuration;
 using QuantTrading.Web.Components;
@@ -37,7 +38,7 @@ builder.Services.AddSingleton<ITradingEngineFactory, TradingEngineFactory>();
 // ── Fugle 即時行情服務 (WebSocket) ──────────────────────────────
 // 設定在 appsettings.json 的 "Fugle" 區段
 // 需要 Fugle 付費方案 (WebSocket Streaming 權限) 才能啟用
-// builder.Services.AddFugleMarketDataFeed(builder.Configuration);
+builder.Services.AddFugleMarketDataFeed(builder.Configuration);
 
 var app = builder.Build();
 

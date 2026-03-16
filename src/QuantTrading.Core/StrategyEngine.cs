@@ -11,19 +11,34 @@ namespace QuantTrading.Core;
 public class StrategyEngine : IStrategyEngine
 {
     private readonly IRiskManager _riskManager;
-    private readonly decimal _refPrice;
-    private readonly decimal _dipThresholdPercent = 0.02m; // 2% below VWAP
-    private readonly double _volumeSpikeMultiplier = 3.0; // 3x avg volume
+    private readonly PreMarketGapConfig _gapConfig;
+    private readonly IntradayDipConfig _dipConfig;
     
+    // 儲存每檔股票的參考價 (Strategy A 使用)
+    private readonly ConcurrentDictionary<string, decimal> _referencePrices = new();
+    
+    // 儲存每檔股票的運行狀態
     private readonly ConcurrentDictionary<string, IntradayState> _states = new();
+    
+    // 儲存每檔股票的成交歷史 (Strategy B 使用)
     private readonly ConcurrentDictionary<string, Queue<BarData>> _barHistory = new();
 
     public event Action<SignalContext>? OnSignalGenerated;
+    public event Action<RejectedSignal>? OnSignalRejected;
 
-    public StrategyEngine(IRiskManager riskManager, decimal refPrice)
+    public StrategyEngine(
+        IRiskManager riskManager, 
+        PreMarketGapConfig? gapConfig = null, 
+        IntradayDipConfig? dipConfig = null)
     {
         _riskManager = riskManager;
-        _refPrice = refPrice;
+        _gapConfig = gapConfig ?? new PreMarketGapConfig();
+        _dipConfig = dipConfig ?? new IntradayDipConfig();
+    }
+
+    public void SetReferencePrice(string ticker, decimal refPrice)
+    {
+        _referencePrices[ticker] = refPrice;
     }
 
     public async Task ProcessTickAsync(TickData tick)
@@ -34,32 +49,36 @@ public class StrategyEngine : IStrategyEngine
         {
             var time = tick.Timestamp.ToLocalTime().TimeOfDay;
 
-            // Strategy A: Pre-Market Gap (08:30 ~ 08:59:55)
-            if (time >= new TimeSpan(8, 30, 0) && time <= new TimeSpan(8, 59, 55))
+            // Strategy A: Pre-Market Gap (MonitorStart ~ MonitorEnd)
+            if (time >= _gapConfig.MonitorStart && time <= _gapConfig.MonitorEnd)
             {
-                if (tick.Price > _refPrice * 1.01m)
+                if (_referencePrices.TryGetValue(tick.Ticker, out decimal refPrice))
                 {
-                    state.IsStrongGap = true;
+                    if (tick.Price > refPrice * (1 + _gapConfig.GapStrengthPercent))
+                    {
+                        state.IsStrongGap = true;
+                    }
                 }
                 
                 // Check for sharp pullbacks (Fakeout Filter)
-                if (state.PreMarketHigh > 0 && (state.PreMarketHigh - tick.Price) / state.PreMarketHigh > 0.005m)
+                if (state.PreMarketHigh > 0 && 
+                    (state.PreMarketHigh - tick.Price) / state.PreMarketHigh > _gapConfig.FakeoutPullbackPercent)
                 {
                     state.IsFakeout = true;
                 }
                 state.PreMarketHigh = Math.Max(state.PreMarketHigh, tick.Price);
 
-                if (time >= new TimeSpan(8, 59, 55) && state.IsStrongGap && !state.IsFakeout && !state.OpenGapTriggered)
+                if (time >= _gapConfig.MonitorEnd && state.IsStrongGap && !state.IsFakeout && !state.OpenGapTriggered)
                 {
                     state.OpenGapTriggered = true;
-                    GenerateSignal(StrategyType.OpenGap, tick, tick.Price * 0.99m, 1.0);
+                    GenerateSignal(StrategyType.OpenGap, OrderType.MarketBuy, tick, tick.Price * (1 - _gapConfig.StopLossOffsetPercent), 1.0);
                 }
             }
 
             // Strategy B Confirmation: Next Tick Up (Price > Last Price)
             if (state.PotentialDipSignalReady && tick.Price > state.LastTickPrice)
             {
-                GenerateSignal(StrategyType.IntradayDip, tick, state.LastBarLow, state.LastVolumeRatio);
+                GenerateSignal(StrategyType.IntradayDip, OrderType.LimitBuy, tick, state.LastBarLow, state.LastVolumeRatio);
                 state.PotentialDipSignalReady = false; // Reset after trigger
             }
 
@@ -77,32 +96,49 @@ public class StrategyEngine : IStrategyEngine
             bars.Enqueue(bar);
             if (bars.Count > 100) bars.Dequeue();
 
-            // Update VWAP (Simplified calculation)
+            // Update VWAP
             state.UpdateVWAP(bar);
 
-            // Strategy B: Intraday Dip & Volume Surge
-            if (bars.Count >= 6) // Need 5 for average + 1 current
+            // Strategy B: Intraday Dip & Volume Surge (ActiveStart ~ ActiveEnd)
+            var time = bar.Timestamp.ToLocalTime().TimeOfDay;
+            if (time >= _dipConfig.ActiveStart && time <= _dipConfig.ActiveEnd)
             {
-                var history = bars.Take(bars.Count - 1).ToList();
-                double avgVol = history.TakeLast(5).Average(b => (double)b.Volume);
-                
-                bool isDip = bar.Close < (state.Vwap * (1m - _dipThresholdPercent));
-                bool isVolumeSpike = (double)bar.Volume > (avgVol * _volumeSpikeMultiplier);
-
-                if (isDip && isVolumeSpike)
+                if (bars.Count >= _dipConfig.VolumeLookbackBars + 1)
                 {
-                    state.PotentialDipSignalReady = true;
-                    state.LastBarLow = bar.Low;
-                    state.LastVolumeRatio = (double)bar.Volume / avgVol;
+                    var history = bars.Take(bars.Count - 1).ToList();
+                    double avgVol = history.TakeLast(_dipConfig.VolumeLookbackBars).Average(b => (double)b.Volume);
+                    
+                    bool isDip = bar.Close < (state.Vwap * (1m - _dipConfig.DipThresholdPercent));
+                    bool isVolumeSpike = (double)bar.Volume > (avgVol * _dipConfig.VolumeSpikeMultiplier);
+
+                    if (isDip && isVolumeSpike)
+                    {
+                        state.PotentialDipSignalReady = true;
+                        state.LastBarLow = bar.Low;
+                        state.LastVolumeRatio = (double)bar.Volume / avgVol;
+                    }
                 }
             }
         }
     }
 
-    private void GenerateSignal(StrategyType type, TickData tick, decimal stopLoss, double volumeRatio)
+    private void GenerateSignal(StrategyType type, OrderType orderType, TickData tick, decimal stopLoss, double volumeRatio)
     {
-        var signal = _riskManager.CalculateAndValidate(type, tick, stopLoss, volumeRatio);
-        if (signal != null) OnSignalGenerated?.Invoke(signal);
+        var (signal, result) = _riskManager.EvaluateSignal(type, orderType, tick, stopLoss, volumeRatio);
+        
+        if (signal != null)
+        {
+            OnSignalGenerated?.Invoke(signal);
+        }
+        else if (result != SignalResult.Accept)
+        {
+            OnSignalRejected?.Invoke(new RejectedSignal(
+                Reason: result,
+                Strategy: type,
+                Ticker: tick.Ticker,
+                Timestamp: DateTime.UtcNow
+            ));
+        }
     }
 
     private class IntradayState

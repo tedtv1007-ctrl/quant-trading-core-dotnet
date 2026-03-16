@@ -1,6 +1,6 @@
 using QuantTrading.Core.Models;
 
-namespace QuantTrading.Web.Services;
+namespace QuantTrading.Core.Services;
 
 // ── Watchlist Entry ─────────────────────────────────────────────────
 /// <summary>監控清單中的個股項目。</summary>
@@ -11,6 +11,7 @@ public class WatchlistEntry
     public string Status { get; set; } = "Idle";
     public bool IsRunning { get; set; }
 }
+
 /// <summary>台面狀態快照 — 單一鎖內取得，避免不一致讀取。</summary>
 public record StatusSnapshot(
     bool IsSimulationRunning,
@@ -19,6 +20,7 @@ public record StatusSnapshot(
     decimal DailyRealizedLoss,
     int WatchlistCount,
     List<string> ActiveTickers);
+
 /// <summary>
 /// Singleton 狀態容器 — 保存監控清單、即時訊號、風控狀態，供 UI 讀取。
 /// 支援同時監控多支股票。

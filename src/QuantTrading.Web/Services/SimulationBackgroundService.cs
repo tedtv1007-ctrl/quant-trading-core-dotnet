@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using QuantTrading.Core.Interfaces;
 using QuantTrading.Core.Models;
+using QuantTrading.Core.Services;
 
 namespace QuantTrading.Web.Services;
 

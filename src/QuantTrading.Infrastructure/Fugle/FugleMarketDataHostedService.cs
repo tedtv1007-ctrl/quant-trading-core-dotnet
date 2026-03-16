@@ -2,6 +2,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using QuantTrading.Core.Interfaces;
 using QuantTrading.Core.Models;
+using QuantTrading.Core.Services;
 
 namespace QuantTrading.Infrastructure.Fugle;
 
@@ -12,16 +13,19 @@ namespace QuantTrading.Infrastructure.Fugle;
 public sealed class FugleMarketDataHostedService : BackgroundService
 {
     private readonly IMarketDataFeed _feed;
+    private readonly TradingStateService _state;
     private readonly ILogger<FugleMarketDataHostedService> _logger;
 
-    /// <summary>啟動後自動訂閱的預設標的 (可後續改為從設定讀取)。</summary>
-    private static readonly string[] DefaultTickers = ["2330"];
+    /// <summary>啟動後自動訂閱的預設標的。</summary>
+    private static readonly string[] DefaultTickers = ["2330", "2344"];
 
     public FugleMarketDataHostedService(
         IMarketDataFeed feed,
+        TradingStateService state,
         ILogger<FugleMarketDataHostedService> logger)
     {
         _feed = feed;
+        _state = state;
         _logger = logger;
     }
 
@@ -40,15 +44,36 @@ public sealed class FugleMarketDataHostedService : BackgroundService
                 "📊 BAR   {Ticker} | O={Open} H={High} L={Low} C={Close} | Vol={Volume} | {Time:HH:mm:ss}",
                 bar.Ticker, bar.Open, bar.High, bar.Low, bar.Close, bar.Volume, bar.Timestamp);
 
+        // 監聽 Watchlist 變更
+        _state.OnStateChanged += () =>
+        {
+            if (_feed.IsConnected)
+            {
+                var watchlist = _state.GetWatchlist();
+                foreach (var entry in watchlist)
+                {
+                    _feed.Subscribe(entry.Ticker, MarketDataType.Realtime);
+                }
+            }
+        };
+
         try
         {
             await _feed.StartAsync(stoppingToken);
 
-            // 自動訂閱預設標的
+            // 自動將預設標的加入 Watchlist (若尚未存在)
             foreach (var ticker in DefaultTickers)
             {
-                _feed.Subscribe(ticker, MarketDataType.Realtime);
-                _logger.LogInformation("Auto-subscribed to {Ticker}", ticker);
+                // 注意：這裡假設一個合理的參考價，實務上可從資料庫或外部 API 取得
+                _state.AddToWatchlist(ticker, 100m); 
+            }
+
+            // 初始訂閱 Watchlist 中的所有股票
+            var initialWatchlist = _state.GetWatchlist();
+            foreach (var entry in initialWatchlist)
+            {
+                _feed.Subscribe(entry.Ticker, MarketDataType.Realtime);
+                _logger.LogInformation("Initial subscription: {Ticker}", entry.Ticker);
             }
 
             // 保持運行直到 Host 停止
