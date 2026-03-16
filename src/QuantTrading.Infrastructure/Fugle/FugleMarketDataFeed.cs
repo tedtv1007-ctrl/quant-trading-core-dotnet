@@ -186,11 +186,12 @@ public sealed class FugleMarketDataFeed : IMarketDataFeed, IAsyncDisposable
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
-        if (_cts == null) return;
+        var cts = Interlocked.Exchange(ref _cts, null);
+        if (cts == null) return;
 
         _logger.LogInformation("Stopping FugleMarketDataFeed...");
 
-        _cts.Cancel();
+        cts.Cancel();
 
         // 關閉 channel writers 觸發 readers 結束
         _tickChannel.Writer.TryComplete();
@@ -214,8 +215,7 @@ public sealed class FugleMarketDataFeed : IMarketDataFeed, IAsyncDisposable
         // 關閉 WebSocket
         await CloseWebSocketAsync();
 
-        _cts.Dispose();
-        _cts = null;
+        cts.Dispose();
 
         _logger.LogInformation(
             "FugleMarketDataFeed stopped. Stats: ticks={Ticks}, bars={Bars}, reconnects={Reconnects}",

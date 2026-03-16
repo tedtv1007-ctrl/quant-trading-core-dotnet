@@ -67,19 +67,39 @@ public class StrategyEngine : IStrategyEngine
                     state.IsFakeout = true;
                 }
                 state.PreMarketHigh = Math.Max(state.PreMarketHigh, tick.Price);
+            }
 
-                if (time >= _gapConfig.MonitorEnd && state.IsStrongGap && !state.IsFakeout && !state.OpenGapTriggered)
-                {
-                    state.OpenGapTriggered = true;
-                    GenerateSignal(StrategyType.OpenGap, OrderType.MarketBuy, tick, tick.Price * (1 - _gapConfig.StopLossOffsetPercent), 1.0);
-                }
+            // Strategy A Trigger: At or after MonitorEnd
+            if (time >= _gapConfig.MonitorEnd && time < _gapConfig.MonitorEnd.Add(TimeSpan.FromMinutes(5)) && 
+                state.IsStrongGap && !state.IsFakeout && !state.OpenGapTriggered)
+            {
+                state.OpenGapTriggered = true;
+                GenerateSignal(StrategyType.OpenGap, OrderType.MarketBuy, tick, tick.Price * (1 - _gapConfig.StopLossOffsetPercent), 1.0);
             }
 
             // Strategy B Confirmation: Next Tick Up (Price > Last Price)
-            if (state.PotentialDipSignalReady && tick.Price > state.LastTickPrice)
+            // MUST be within active hours AND price > stopLoss (LastBarLow) to be valid
+            if (state.PotentialDipSignalReady && time >= _dipConfig.ActiveStart && time <= _dipConfig.ActiveEnd)
             {
-                GenerateSignal(StrategyType.IntradayDip, OrderType.LimitBuy, tick, state.LastBarLow, state.LastVolumeRatio);
-                state.PotentialDipSignalReady = false; // Reset after trigger
+                bool isDip = tick.Price < (state.Vwap * (1m - _dipConfig.DipThresholdPercent));
+                
+                // If we haven't confirmed a dip yet, we are still looking for it
+                if (!state.DipDetected && isDip)
+                {
+                    state.DipDetected = true;
+                }
+
+                if (state.DipDetected && state.LastTickPrice > 0 && tick.Price > state.LastTickPrice && tick.Price > state.LastBarLow)
+                {
+                    GenerateSignal(StrategyType.IntradayDip, OrderType.LimitBuy, tick, state.LastBarLow, state.LastVolumeRatio);
+                    state.PotentialDipSignalReady = false; // Reset after trigger
+                    state.DipDetected = false;
+                }
+                else
+                {
+                    // Update LastBarLow if we find a deeper dip
+                    state.LastBarLow = Math.Min(state.LastBarLow, tick.Price);
+                }
             }
 
             state.LastTickPrice = tick.Price;
@@ -99,6 +119,9 @@ public class StrategyEngine : IStrategyEngine
             // Update VWAP
             state.UpdateVWAP(bar);
 
+            // Initialize LastTickPrice if not set
+            if (state.LastTickPrice == 0) state.LastTickPrice = bar.Close;
+
             // Strategy B: Intraday Dip & Volume Surge (ActiveStart ~ ActiveEnd)
             var time = bar.Timestamp.TimeOfDay;
             if (time >= _dipConfig.ActiveStart && time <= _dipConfig.ActiveEnd)
@@ -108,12 +131,12 @@ public class StrategyEngine : IStrategyEngine
                     var history = bars.Take(bars.Count - 1).ToList();
                     double avgVol = history.TakeLast(_dipConfig.VolumeLookbackBars).Average(b => (double)b.Volume);
                     
-                    bool isDip = bar.Close < (state.Vwap * (1m - _dipConfig.DipThresholdPercent));
                     bool isVolumeSpike = (double)bar.Volume > (avgVol * _dipConfig.VolumeSpikeMultiplier);
 
-                    if (isDip && isVolumeSpike)
+                    if (isVolumeSpike)
                     {
                         state.PotentialDipSignalReady = true;
+                        state.DipDetected = bar.Close < (state.Vwap * (1m - _dipConfig.DipThresholdPercent));
                         state.LastBarLow = bar.Low;
                         state.LastVolumeRatio = (double)bar.Volume / avgVol;
                     }
@@ -153,6 +176,7 @@ public class StrategyEngine : IStrategyEngine
         private long _cumVol;
 
         public bool PotentialDipSignalReady { get; set; }
+        public bool DipDetected { get; set; }
         public decimal LastTickPrice { get; set; }
         public decimal LastBarLow { get; set; }
         public double LastVolumeRatio { get; set; }
