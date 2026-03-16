@@ -614,14 +614,13 @@ public class FugleMarketDataFeedTests
     }
 
     [Fact]
-    public void Constructor_WithoutApiToken_ShouldThrow()
+    public void Constructor_WithoutApiToken_ShouldNotThrow()
     {
         var options = Options.Create(new FugleOptions { ApiToken = "" });
         var logger = NullLoggerFactory.Instance.CreateLogger<FugleMarketDataFeed>();
 
         var act = () => new FugleMarketDataFeed(options, logger);
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*API Token*");
+        act.Should().NotThrow();
     }
 
     [Fact]

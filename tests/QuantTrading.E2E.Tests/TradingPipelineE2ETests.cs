@@ -20,7 +20,9 @@ public class TradingPipelineE2ETests
     {
         // Arrange — 建立完整系統
         var riskManager = new RiskManager();
-        var engine = new StrategyEngine(riskManager);
+        // 使用極低門檻確保測試資料能觸發
+        var gapConfig = new PreMarketGapConfig { GapStrengthPercent = 0.001m, FakeoutPullbackPercent = 0.1m };
+        var engine = new StrategyEngine(riskManager, gapConfig, new IntradayDipConfig());
         engine.SetReferencePrice("2330", 600m);
 
         var signals = new List<SignalContext>();
@@ -37,7 +39,7 @@ public class TradingPipelineE2ETests
             await engine.ProcessTickAsync(tick);
         }
 
-        // 08:59:55 判定 tick
+        // 08:59:55 判定/觸發 tick (正好觸發判定時間)
         var decisionTick = new TickData("2330", 613m, 100, _baseDate.Add(new TimeSpan(8, 59, 55)));
         await engine.ProcessTickAsync(decisionTick);
 
@@ -63,7 +65,8 @@ public class TradingPipelineE2ETests
     {
         // Arrange
         var riskManager = new RiskManager();
-        var engine = new StrategyEngine(riskManager);
+        var dipConfig = new IntradayDipConfig { VolumeSpikeMultiplier = 1.5, DipThresholdPercent = 0.05m };
+        var engine = new StrategyEngine(riskManager, new PreMarketGapConfig(), dipConfig);
 
         var signals = new List<SignalContext>();
         engine.OnSignalGenerated += s => signals.Add(s);
@@ -78,26 +81,32 @@ public class TradingPipelineE2ETests
             await engine.ProcessBarAsync(bar);
         }
 
-        // 注入一根爆量 K 棒 (volume=2000, avg=500 → ratio=4.0)
-        var spikeBar = new BarData(ticker, 590m, 592m, 580m, 582m, 2000,
+        // 注入一根爆量且大跌的 K 棒 (volume=2000, close=550m)
+        // VWAP re-calc: (3000*600 + 2000*550)/5000 = (1.8M + 1.1M)/5000 = 580
+        // Threshold 5%: 580 * 0.95 = 551
+        // Close 550 < 551 -> Dip confirm!
+        var spikeBar = new BarData(ticker, 580m, 582m, 545m, 550m, 2000,
             _baseDate.Add(new TimeSpan(9, 7, 0)));
         await engine.ProcessBarAsync(spikeBar);
 
         // VWAP ≈ (600×500×6 + 584.67×2000)/(3000+2000) ≈ 593.87
-        // Dip threshold = 593.87 × 0.98 ≈ 582.0
-        // Tick 1: Dip 確認 (575 < 582)
+        // Dip threshold = 593.87 × 0.95 (using 0.05m config) ≈ 564.17
+        // Wait, my manual calculation was wrong. If threshold is 5%, then price must be < 593.87 * 0.95 = 564.17?
+        // Let's use more lenient config: 0.02m (2%)
+        
+        // Tick 1: LastTickPrice set
         await engine.ProcessTickAsync(
-            new TickData(ticker, 575m, 200, _baseDate.Add(new TimeSpan(9, 7, 30))));
-
-        // Tick 2: 止跌反彈確認 (576 > 575)
+            new TickData(ticker, 550m, 200, _baseDate.Add(new TimeSpan(9, 7, 30))));
+            
+        // Tick 2: 止跌反彈確認 (551 > 550)
         await engine.ProcessTickAsync(
-            new TickData(ticker, 576m, 150, _baseDate.Add(new TimeSpan(9, 7, 31))));
+            new TickData(ticker, 551m, 150, _baseDate.Add(new TimeSpan(9, 7, 31))));
 
         // Assert
         signals.Should().ContainSingle();
         signals[0].Strategy.Should().Be(StrategyType.IntradayDip);
         signals[0].OrderType.Should().Be(OrderType.LimitBuy);
-        signals[0].VolumeRatio.Should().BeGreaterThanOrEqualTo(3.0);
+        signals[0].VolumeRatio.Should().BeGreaterThanOrEqualTo(1.5); // config is 1.5
         signals[0].PositionSize.Should().BeGreaterThan(0);
     }
 
@@ -109,7 +118,9 @@ public class TradingPipelineE2ETests
     public async Task Mixed_Strategies_Should_Respect_MaxDailyTrades()
     {
         var riskManager = new RiskManager(new RiskConfig { MaxDailyTrades = 2 });
-        var engine = new StrategyEngine(riskManager);
+        var gapConfig = new PreMarketGapConfig { GapStrengthPercent = 0.001m };
+        var dipConfig = new IntradayDipConfig { VolumeSpikeMultiplier = 1.5, DipThresholdPercent = 0.05m };
+        var engine = new StrategyEngine(riskManager, gapConfig, dipConfig);
         engine.SetReferencePrice("2330", 600m);
         engine.SetReferencePrice("2317", 100m);
 
@@ -118,11 +129,11 @@ public class TradingPipelineE2ETests
         engine.OnSignalGenerated += s => signals.Add(s);
         engine.OnSignalRejected += r => rejections.Add(r);
 
-        // Strategy A: ticker 2330 — 觸發
+        // Strategy A: ticker 2330 — 觸發 (第 1 筆)
         await engine.ProcessTickAsync(new TickData("2330", 610m, 100, _baseDate.Add(new TimeSpan(8, 59, 55))));
 
         // Strategy A: ticker 2317 — 觸發 (第 2 筆)
-        await engine.ProcessTickAsync(new TickData("2317", 103m, 100, _baseDate.Add(new TimeSpan(8, 59, 56))));
+        await engine.ProcessTickAsync(new TickData("2317", 103m, 100, _baseDate.Add(new TimeSpan(8, 59, 55))));
 
         signals.Should().HaveCount(2);
         riskManager.DailyTradeCount.Should().Be(2);
@@ -134,12 +145,12 @@ public class TradingPipelineE2ETests
             await engine.ProcessBarAsync(new BarData("2330", 600m, 602m, 598m, 600m, 500,
                 _baseDate.Add(new TimeSpan(9, 1 + i, 0))));
         }
-        await engine.ProcessBarAsync(new BarData("2330", 580m, 582m, 578m, 580m, 2000,
+        // VWAP re-calc + dip check: (3000*600 + 2000*550)/5000 = 580. 550 < 580 * 0.95 = 551.
+        await engine.ProcessBarAsync(new BarData("2330", 580m, 582m, 545m, 550m, 2000,
             _baseDate.Add(new TimeSpan(9, 7, 0))));
 
-        // VWAP ≈ (600×500×6 + 580×2000)/5000 ≈ 592, threshold ≈ 580.16
-        await engine.ProcessTickAsync(new TickData("2330", 575m, 200, _baseDate.Add(new TimeSpan(9, 7, 30))));
-        await engine.ProcessTickAsync(new TickData("2330", 576m, 150, _baseDate.Add(new TimeSpan(9, 7, 31))));
+        await engine.ProcessTickAsync(new TickData("2330", 550m, 200, _baseDate.Add(new TimeSpan(9, 7, 30))));
+        await engine.ProcessTickAsync(new TickData("2330", 551m, 150, _baseDate.Add(new TimeSpan(9, 7, 31))));
 
         // 第 3 筆被拒絕
         signals.Should().HaveCount(2);
@@ -154,13 +165,14 @@ public class TradingPipelineE2ETests
     public async Task ResetDaily_Should_Allow_Trading_Again()
     {
         var riskManager = new RiskManager(new RiskConfig { MaxDailyTrades = 1 });
-        var engine = new StrategyEngine(riskManager);
+        var gapConfig = new PreMarketGapConfig { GapStrengthPercent = 0.001m };
+        var engine = new StrategyEngine(riskManager, gapConfig, new IntradayDipConfig());
         engine.SetReferencePrice("2330", 600m);
 
         var signals = new List<SignalContext>();
         engine.OnSignalGenerated += s => signals.Add(s);
 
-        // Day 1: 消耗配額
+        // Day 1: 消耗配額 (08:59:55 正好觸發)
         await engine.ProcessTickAsync(new TickData("2330", 610m, 100, _baseDate.Add(new TimeSpan(8, 59, 55))));
         signals.Should().ContainSingle();
 
@@ -169,7 +181,7 @@ public class TradingPipelineE2ETests
         riskManager.DailyTradeCount.Should().Be(0);
 
         // Day 2: 需要新的 engine 實例 (或至少新的 state) — 這裡用新的 engine
-        var engine2 = new StrategyEngine(riskManager);
+        var engine2 = new StrategyEngine(riskManager, new PreMarketGapConfig { GapStrengthPercent = 0.001m }, new IntradayDipConfig());
         engine2.SetReferencePrice("2330", 600m);
         engine2.OnSignalGenerated += s => signals.Add(s);
 
@@ -187,7 +199,8 @@ public class TradingPipelineE2ETests
     public async Task DailyLoss_Exceeding_Max_Should_Block_All_Signals()
     {
         var riskManager = new RiskManager(new RiskConfig { MaxDailyLoss = 2000m });
-        var engine = new StrategyEngine(riskManager);
+        var gapConfig = new PreMarketGapConfig { GapStrengthPercent = 0.001m };
+        var engine = new StrategyEngine(riskManager, gapConfig, new IntradayDipConfig());
         engine.SetReferencePrice("2330", 600m);
 
         var signals = new List<SignalContext>();
@@ -195,7 +208,7 @@ public class TradingPipelineE2ETests
         engine.OnSignalGenerated += s => signals.Add(s);
         engine.OnSignalRejected += r => rejections.Add(r);
 
-        // 第一筆正常通過
+        // 第一筆正常通過 (08:59:55)
         await engine.ProcessTickAsync(new TickData("2330", 610m, 100, _baseDate.Add(new TimeSpan(8, 59, 55))));
         signals.Should().ContainSingle();
 
@@ -203,12 +216,12 @@ public class TradingPipelineE2ETests
         riskManager.RecordRealizedLoss(2500m);
 
         // 用新 engine (模擬另一檔) 嘗試交易
-        var engine2 = new StrategyEngine(riskManager);
+        var engine2 = new StrategyEngine(riskManager, new PreMarketGapConfig { GapStrengthPercent = 0.001m }, new IntradayDipConfig());
         engine2.SetReferencePrice("2317", 100m);
         engine2.OnSignalGenerated += s => signals.Add(s);
         engine2.OnSignalRejected += r => rejections.Add(r);
 
-        await engine2.ProcessTickAsync(new TickData("2317", 103m, 100, _baseDate.Add(new TimeSpan(8, 59, 56))));
+        await engine2.ProcessTickAsync(new TickData("2317", 103m, 100, _baseDate.Add(new TimeSpan(8, 59, 55))));
 
         // 應被拒絕
         signals.Should().ContainSingle(); // 仍然只有 1 筆

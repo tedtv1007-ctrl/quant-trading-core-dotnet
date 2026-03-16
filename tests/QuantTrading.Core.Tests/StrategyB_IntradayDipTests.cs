@@ -37,7 +37,7 @@ public class StrategyB_IntradayDipTests
     {
         // Arrange
         var riskManager = new RiskManager();
-        var engine = new StrategyEngine(riskManager);
+        var engine = new StrategyEngine(riskManager, new PreMarketGapConfig(), new IntradayDipConfig());
 
         SignalContext? capturedSignal = null;
         engine.OnSignalGenerated += s => capturedSignal = s;
@@ -75,7 +75,7 @@ public class StrategyB_IntradayDipTests
     public async Task Dip_Without_VolumeSpike_Should_Not_Generate_Signal()
     {
         var riskManager = new RiskManager();
-        var engine = new StrategyEngine(riskManager);
+        var engine = new StrategyEngine(riskManager, new PreMarketGapConfig(), new IntradayDipConfig());
 
         SignalContext? capturedSignal = null;
         engine.OnSignalGenerated += s => capturedSignal = s;
@@ -102,7 +102,7 @@ public class StrategyB_IntradayDipTests
     public async Task VolumeSpike_Without_Dip_Should_Not_Generate_Signal()
     {
         var riskManager = new RiskManager();
-        var engine = new StrategyEngine(riskManager);
+        var engine = new StrategyEngine(riskManager, new PreMarketGapConfig(), new IntradayDipConfig());
 
         SignalContext? capturedSignal = null;
         engine.OnSignalGenerated += s => capturedSignal = s;
@@ -127,7 +127,7 @@ public class StrategyB_IntradayDipTests
     public async Task Dip_VolumeSpike_But_No_Reversal_Should_Not_Generate_Signal()
     {
         var riskManager = new RiskManager();
-        var engine = new StrategyEngine(riskManager);
+        var engine = new StrategyEngine(riskManager, new PreMarketGapConfig(), new IntradayDipConfig());
 
         SignalContext? capturedSignal = null;
         engine.OnSignalGenerated += s => capturedSignal = s;
@@ -153,7 +153,7 @@ public class StrategyB_IntradayDipTests
     public async Task VWAP_Should_Update_With_Each_Bar()
     {
         var riskManager = new RiskManager();
-        var engine = new StrategyEngine(riskManager);
+        var engine = new StrategyEngine(riskManager, new PreMarketGapConfig(), new IntradayDipConfig());
 
         string ticker = "TEST";
 
@@ -190,7 +190,7 @@ public class StrategyB_IntradayDipTests
     public async Task Should_Reset_After_Signal_And_Not_Retrigger_Immediately()
     {
         var riskManager = new RiskManager();
-        var engine = new StrategyEngine(riskManager);
+        var engine = new StrategyEngine(riskManager, new PreMarketGapConfig(), new IntradayDipConfig());
 
         int signalCount = 0;
         engine.OnSignalGenerated += _ => signalCount++;
@@ -221,7 +221,7 @@ public class StrategyB_IntradayDipTests
     public async Task Tick_Outside_Active_Hours_Should_Not_Trigger()
     {
         var riskManager = new RiskManager();
-        var engine = new StrategyEngine(riskManager);
+        var engine = new StrategyEngine(riskManager, new PreMarketGapConfig(), new IntradayDipConfig());
 
         SignalContext? capturedSignal = null;
         engine.OnSignalGenerated += s => capturedSignal = s;

@@ -47,7 +47,7 @@ public class StrategyEngine : IStrategyEngine
         
         lock (state)
         {
-            var time = tick.Timestamp.ToLocalTime().TimeOfDay;
+            var time = tick.Timestamp.TimeOfDay;
 
             // Strategy A: Pre-Market Gap (MonitorStart ~ MonitorEnd)
             if (time >= _gapConfig.MonitorStart && time <= _gapConfig.MonitorEnd)
@@ -100,7 +100,7 @@ public class StrategyEngine : IStrategyEngine
             state.UpdateVWAP(bar);
 
             // Strategy B: Intraday Dip & Volume Surge (ActiveStart ~ ActiveEnd)
-            var time = bar.Timestamp.ToLocalTime().TimeOfDay;
+            var time = bar.Timestamp.TimeOfDay;
             if (time >= _dipConfig.ActiveStart && time <= _dipConfig.ActiveEnd)
             {
                 if (bars.Count >= _dipConfig.VolumeLookbackBars + 1)

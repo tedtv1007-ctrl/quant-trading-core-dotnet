@@ -89,8 +89,7 @@ public sealed class FugleMarketDataFeed : IMarketDataFeed, IAsyncDisposable
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-        if (string.IsNullOrWhiteSpace(_options.ApiToken))
-            throw new InvalidOperationException("Fugle API Token is required. Set Fugle:ApiToken in configuration.");
+        // Note: API Token validation moved to StartAsync to prevent crash in CI/Test environments.
 
         // ── 建立 Bounded Channels ───────────────────────────────
         _tickChannel = Channel.CreateBounded<TickData>(new BoundedChannelOptions(_options.TickChannelCapacity)
@@ -163,6 +162,14 @@ public sealed class FugleMarketDataFeed : IMarketDataFeed, IAsyncDisposable
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
         _logger.LogInformation("Starting FugleMarketDataFeed → {Url}", _options.WebSocketUrl);
+
+        // ── API Token Validation ────────────────────────────────
+        if (string.IsNullOrWhiteSpace(_options.ApiToken))
+        {
+            _logger.LogWarning("Fugle API Token is missing. Real-time market data feed will be DISABLED. " +
+                               "Please set Fugle:ApiToken in appsettings.json if you need real-time data.");
+            return;
+        }
 
         // 首次連線 (透過 Polly 重試)
         await ConnectWithRetryAsync(_cts.Token);
