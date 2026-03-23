@@ -1,19 +1,20 @@
-.page {
-    position: relative;
+.sidebar-toggle-btn {
+    background: transparent;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    color: #8b949e;
+    font-size: 1.1rem;
+    padding: 0px 8px;
+    cursor: pointer;
+    transition: all 0.2s;
     display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-    background-color: #0d1117;
+    align-items: center;
+    justify-content: center;
 }
-
-main {
-    flex: 1;
-    background-color: #0d1117;
-}
-
-.sidebar {
-    background: linear-gradient(180deg, #0f1923 0%, #0a1628 50%, #0d1117 100%);
-    border-right: 1px solid #1c2e4a;
+.sidebar-toggle-btn:hover {
+    color: #58a6ff;
+    border-color: #58a6ff;
+    background: rgba(88, 166, 255, 0.1);
 }
 
 .top-row {
@@ -67,28 +68,19 @@ main {
 }
 
 @media (min-width: 641px) {
-    .page {
-        flex-direction: row;
-    }
-
     .sidebar {
-        width: 260px;
         height: 100vh;
         position: sticky;
         top: 0;
         overflow-y: auto;
+        background: linear-gradient(180deg, #0f1923 0%, #0a1628 50%, #0d1117 100%);
+        border-right: 1px solid #1c2e4a;
     }
 
     .top-row {
         position: sticky;
         top: 0;
         z-index: 1;
-    }
-
-    .top-row.auth ::deep a:first-child {
-        flex: 1;
-        text-align: right;
-        width: 0;
     }
 
     .top-row, article {
@@ -109,11 +101,4 @@ main {
     position: fixed;
     width: 100%;
     z-index: 1000;
-}
-
-#blazor-error-ui .dismiss {
-    cursor: pointer;
-    position: absolute;
-    right: 0.75rem;
-    top: 0.5rem;
 }

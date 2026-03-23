@@ -613,11 +613,17 @@ public sealed class FugleMarketDataFeed : IMarketDataFeed, IAsyncDisposable
 
         if (trade == null || trade.Price <= 0) return;
 
+        // 判定 TickType (內外盤判定)
+        TickType type = TickType.Neutral;
+        if (trade.Ask > 0 && trade.Price >= trade.Ask) type = TickType.Up;
+        else if (trade.Bid > 0 && trade.Price <= trade.Bid) type = TickType.Down;
+
         var tick = new TickData(
             Ticker: trade.Symbol,
             Price: trade.Price,
             Volume: trade.Size,
-            Timestamp: UnixUsToDateTime(trade.Time)
+            Timestamp: UnixUsToDateTime(trade.Time),
+            Type: type
         );
 
         _tickChannel.Writer.TryWrite(tick);

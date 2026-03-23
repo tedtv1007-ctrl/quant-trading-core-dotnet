@@ -14,18 +14,27 @@ public sealed class FugleMarketDataHostedService : BackgroundService
 {
     private readonly IMarketDataFeed _feed;
     private readonly TradingStateService _state;
+    private readonly ITradingEngineFactory _engineFactory;
+    private readonly TradingConfiguration _config;
     private readonly ILogger<FugleMarketDataHostedService> _logger;
 
+    private IStrategyEngine? _engine;
+    private IRiskManager? _riskManager;
+
     /// <summary>啟動後自動訂閱的預設標的。</summary>
-    private static readonly string[] DefaultTickers = ["2330", "2344"];
+    private static readonly string[] DefaultTickers = ["2344"];
 
     public FugleMarketDataHostedService(
         IMarketDataFeed feed,
         TradingStateService state,
+        ITradingEngineFactory engineFactory,
+        TradingConfiguration config,
         ILogger<FugleMarketDataHostedService> logger)
     {
         _feed = feed;
         _state = state;
+        _engineFactory = engineFactory;
+        _config = config;
         _logger = logger;
     }
 
@@ -33,16 +42,41 @@ public sealed class FugleMarketDataHostedService : BackgroundService
     {
         _logger.LogInformation("FugleMarketDataHostedService starting...");
 
-        // 註冊事件 log — 用於觀察即時行情
-        _feed.OnTickReceived += tick =>
-            _logger.LogInformation(
-                "📈 TICK  {Ticker} | Price={Price} | Vol={Volume} | {Time:HH:mm:ss.fff}",
-                tick.Ticker, tick.Price, tick.Volume, tick.Timestamp);
+        // ── 初始化策略引擎 ──────────────────────────────────────────
+        var (engine, riskManager) = _engineFactory.Create(
+            _config.RiskConfig, _config.GapConfig, _config.DipConfig);
+        _engine = engine;
+        _riskManager = riskManager;
 
-        _feed.OnBarClosed += bar =>
-            _logger.LogInformation(
-                "📊 BAR   {Ticker} | O={Open} H={High} L={Low} C={Close} | Vol={Volume} | {Time:HH:mm:ss}",
-                bar.Ticker, bar.Open, bar.High, bar.Low, bar.Close, bar.Volume, bar.Timestamp);
+        // 註冊事件 — 將訊號寫入 StateService
+        _engine.OnSignalGenerated += signal =>
+        {
+            _logger.LogInformation("🚀 SIGNAL GENERATED: {Ticker} {Strategy} @ {Price}", 
+                signal.Ticker, signal.Strategy, signal.EntryPrice);
+            _state.AddSignal(signal);
+            _state.DailyTradeCount = _riskManager.DailyTradeCount;
+            _state.DailyRealizedLoss = _riskManager.DailyRealizedLoss;
+        };
+
+        _engine.OnSignalRejected += rejection =>
+        {
+            _logger.LogWarning("❌ SIGNAL REJECTED: {Ticker} Reason={Reason}", 
+                rejection.Ticker, rejection.Reason);
+            _state.AddRejection(rejection);
+        };
+
+        // 註冊事件 log — 用於觀察即時行情
+        _feed.OnTickReceived += async tick =>
+        {
+            _state.AddTick(tick);
+            if (_engine != null) await _engine.ProcessTickAsync(tick);
+        };
+
+        _feed.OnBarClosed += async bar =>
+        {
+            _state.AddBar(bar);
+            if (_engine != null) await _engine.ProcessBarAsync(bar);
+        };
 
         // 監聽 Watchlist 變更
         _state.OnStateChanged += () =>

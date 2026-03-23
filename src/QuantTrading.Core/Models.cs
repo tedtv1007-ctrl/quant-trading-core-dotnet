@@ -9,6 +9,7 @@ public enum MarketDataType { Simulate, Realtime }
 public enum OrderType { MarketBuy, LimitBuy }
 public enum SignalResult { Accept, RejectRisk, RejectMaxTrades, RejectDailyLoss }
 public enum TradeDirection { Buy, Sell }
+public enum TickType { Neutral, Up, Down } // Up=外盤(紅), Down=內盤(綠)
 
 // ── Market Data Records ─────────────────────────────────────────────────
 
@@ -16,7 +17,8 @@ public record TickData(
     string Ticker,
     decimal Price,
     long Volume,
-    DateTime Timestamp
+    DateTime Timestamp,
+    TickType Type = TickType.Neutral
 );
 
 public record BarData(

@@ -1,13 +1,17 @@
 ﻿@inherits LayoutComponentBase
+@rendermode InteractiveServer
 
-<div class="page">
+<div class="page @(collapseSidebar ? "sidebar-collapsed" : "")">
     <div class="sidebar">
-        <NavMenu />
+        <NavMenu IsCollapsed="collapseSidebar" />
     </div>
 
     <main>
         <div class="top-row px-4">
             <div class="d-flex align-items-center gap-3">
+                <button class="sidebar-toggle-btn" @onclick="ToggleSidebar">
+                    <i class="bi bi-list"></i>
+                </button>
                 <span class="top-row-label"><i class="bi bi-clock"></i> @DateTime.Now.ToString("yyyy-MM-dd HH:mm")</span>
                 <span class="top-row-divider">|</span>
                 <span class="top-row-label"><i class="bi bi-cpu"></i> .NET 8</span>
@@ -27,6 +31,16 @@
         </article>
     </main>
 </div>
+
+@code {
+    private bool collapseSidebar = false;
+
+    private void ToggleSidebar()
+    {
+        collapseSidebar = !collapseSidebar;
+        Console.WriteLine($"[DEBUG] Sidebar toggled. New state: {collapseSidebar}");
+    }
+}
 
 <div id="blazor-error-ui">
     An unhandled error has occurred.

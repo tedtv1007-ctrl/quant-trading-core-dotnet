@@ -2,10 +2,13 @@
     <div class="container-fluid">
         <a class="navbar-brand" href="">
             <span class="brand-icon">⚡</span>
-            <span class="brand-text">
-                <span class="brand-main">QuantTrading</span>
-                <span class="brand-sub">Trading Terminal</span>
-            </span>
+            @if (!IsCollapsed)
+            {
+                <span class="brand-text">
+                    <span class="brand-main">QuantTrading</span>
+                    <span class="brand-sub">Trading Terminal</span>
+                </span>
+            }
         </a>
     </div>
 </div>
@@ -14,38 +17,42 @@
 
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
     <nav class="flex-column">
-        <div class="nav-section-label">OVERVIEW</div>
+        @if (!IsCollapsed) { <div class="nav-section-label">OVERVIEW</div> }
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <i class="bi bi-grid-1x2-fill nav-icon"></i> Dashboard
+                <i class="bi bi-grid-1x2-fill nav-icon"></i> @(!IsCollapsed ? "Dashboard" : "")
             </NavLink>
         </div>
 
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="simulation">
-                <i class="bi bi-play-circle-fill nav-icon"></i> Simulation
+                <i class="bi bi-play-circle-fill nav-icon"></i> @(!IsCollapsed ? "Simulation" : "")
             </NavLink>
         </div>
 
-        <div class="nav-section-label">DATA</div>
+        @if (!IsCollapsed) { <div class="nav-section-label">DATA</div> }
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="signals">
-                <i class="bi bi-lightning-charge-fill nav-icon"></i> Signal Log
+                <i class="bi bi-lightning-charge-fill nav-icon"></i> @(!IsCollapsed ? "Signal Log" : "")
             </NavLink>
         </div>
 
-        <div class="nav-section-label">JOURNAL</div>
+        @if (!IsCollapsed) { <div class="nav-section-label">JOURNAL</div> }
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="trades">
-                <i class="bi bi-journal-text nav-icon"></i> Trade Journal
+                <i class="bi bi-journal-text nav-icon"></i> @(!IsCollapsed ? "Trade Journal" : "")
             </NavLink>
         </div>
 
-        <div class="nav-section-label">SETTINGS</div>
+        @if (!IsCollapsed) { <div class="nav-section-label">SETTINGS</div> }
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="configuration">
-                <i class="bi bi-gear-fill nav-icon"></i> Configuration
+                <i class="bi bi-gear-fill nav-icon"></i> @(!IsCollapsed ? "Configuration" : "")
             </NavLink>
         </div>
     </nav>
 </div>
+
+@code {
+    [Parameter] public bool IsCollapsed { get; set; }
+}
