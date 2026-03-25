@@ -265,4 +265,70 @@ public class StrategyB_IntradayDipTests
 
         capturedSignal.Should().BeNull();
     }
+
+    // ── 弱勢反彈 (Weak Reversal) 驗證 ────────────────────────────
+
+    [Fact]
+    public async Task Dip_Rebound_Above_VWAP_Should_Trigger_RejectRisk()
+    {
+        var riskManager = new RiskManager();
+        var engine = new StrategyEngine(riskManager, new PreMarketGapConfig(), new OpenBaseStrategyConfig());
+
+        SignalContext? capturedSignal = null;
+        engine.OnSignalGenerated += s => capturedSignal = s;
+        
+        RejectedSignal? capturedRejection = null;
+        engine.OnSignalRejected += r => capturedRejection = r;
+
+        string ticker = "2330";
+        await SeedBarsAndVwap(engine, ticker, 600m, count: 6);
+
+        // 爆量 K 棒
+        var spikeBar = MakeBar(ticker, 580m, 2000, new TimeSpan(9, 7, 0));
+        await engine.ProcessBarAsync(spikeBar);
+
+        // Dip tick
+        await engine.ProcessTickAsync(MakeTick(ticker, 575m, new TimeSpan(9, 7, 30)));
+        
+        // 反彈直接突破 VWAP (VWAP ≈ 592, 價格 593 > VWAP)
+        await engine.ProcessTickAsync(MakeTick(ticker, 593m, new TimeSpan(9, 7, 31)));
+
+        capturedSignal.Should().BeNull();
+        capturedRejection.Should().NotBeNull();
+        capturedRejection!.Reason.Should().Be(SignalResult.RejectRisk);
+    }
+
+    [Fact]
+    public async Task Dip_Rebound_With_High_SellBuyRatio_Should_Trigger_RejectRisk()
+    {
+        var riskManager = new RiskManager();
+        var engine = new StrategyEngine(riskManager, new PreMarketGapConfig(), new OpenBaseStrategyConfig());
+
+        SignalContext? capturedSignal = null;
+        engine.OnSignalGenerated += s => capturedSignal = s;
+        
+        RejectedSignal? capturedRejection = null;
+        engine.OnSignalRejected += r => capturedRejection = r;
+
+        string ticker = "2330";
+        await SeedBarsAndVwap(engine, ticker, 600m, count: 6);
+
+        var spikeBar = MakeBar(ticker, 580m, 2000, new TimeSpan(9, 7, 0));
+        await engine.ProcessBarAsync(spikeBar);
+
+        // 累積大量內盤量 (Sell) 與少量外盤量 (Buy)
+        // Ratio = Sell / Buy => 800 / 1000 = 0.8 > 0.70
+        await engine.ProcessTickAsync(new TickData(ticker, 580m, 800, _baseDate.Add(new TimeSpan(9, 7, 10)), TickType.Down));
+        await engine.ProcessTickAsync(new TickData(ticker, 580m, 1000, _baseDate.Add(new TimeSpan(9, 7, 11)), TickType.Up));
+
+        // Dip tick
+        await engine.ProcessTickAsync(new TickData(ticker, 575m, 10, _baseDate.Add(new TimeSpan(9, 7, 30)), TickType.Neutral));
+        
+        // 反彈 tick (價格不超過 VWAP，正常應觸發，但因 Sell/Buy > 0.7 被阻擋)
+        await engine.ProcessTickAsync(new TickData(ticker, 576m, 10, _baseDate.Add(new TimeSpan(9, 7, 31)), TickType.Up));
+
+        capturedSignal.Should().BeNull();
+        capturedRejection.Should().NotBeNull();
+        capturedRejection!.Reason.Should().Be(SignalResult.RejectRisk);
+    }
 }

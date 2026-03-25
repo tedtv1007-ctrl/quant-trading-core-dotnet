@@ -17,7 +17,7 @@ public class StrategyA_PreMarketGapTests
     // ── 正常觸發 ────────────────────────────────────────────────
 
     [Fact]
-    public async Task StrongGap_NoFakeout_Should_Generate_MarketBuy_Signal()
+    public async Task StrongGap_InValidTime_Should_Generate_MarketBuy_Signal()
     {
         // Arrange
         var riskManager = new RiskManager();
@@ -27,10 +27,9 @@ public class StrategyA_PreMarketGapTests
         SignalContext? capturedSignal = null;
         engine.OnSignalGenerated += s => capturedSignal = s;
 
-        // Act: 在試搓期間送入價格 > 600 * 1.01 = 606
-        await engine.ProcessTickAsync(MakeTick("2330", 610m, new TimeSpan(8, 30, 0)));
-        await engine.ProcessTickAsync(MakeTick("2330", 611m, new TimeSpan(8, 45, 0)));
-        await engine.ProcessTickAsync(MakeTick("2330", 610.5m, new TimeSpan(8, 55, 0)));
+        // Act: 在 08:55:00 後送入價格 > 600 * 1.01 = 606
+        await engine.ProcessTickAsync(MakeTick("2330", 610m, new TimeSpan(8, 55, 30)));
+        
         // 判定時刻
         await engine.ProcessTickAsync(MakeTick("2330", 610m, new TimeSpan(8, 59, 55)));
 
@@ -40,6 +39,25 @@ public class StrategyA_PreMarketGapTests
         capturedSignal.OrderType.Should().Be(OrderType.MarketBuy);
         capturedSignal.Ticker.Should().Be("2330");
         capturedSignal.EntryPrice.Should().Be(610m);
+    }
+
+    [Fact]
+    public async Task StrongGap_OutValidTime_Should_Not_Generate_Signal()
+    {
+        var riskManager = new RiskManager();
+        var engine = new StrategyEngine(riskManager, new PreMarketGapConfig(), new OpenBaseStrategyConfig());
+        engine.SetReferencePrice("2330", 600m);
+
+        SignalContext? capturedSignal = null;
+        engine.OnSignalGenerated += s => capturedSignal = s;
+
+        // Act: 僅在 08:55:00 之前出現跳空，之後沒有 TICK (代表失效)
+        await engine.ProcessTickAsync(MakeTick("2330", 610m, new TimeSpan(8, 54, 59)));
+        
+        // 08:59:59 雖然有 tick，但若無新跳空也不應該當作符合 (因為前面的 610 不在有效區間)
+        await engine.ProcessTickAsync(MakeTick("2330", 600m, new TimeSpan(8, 59, 55)));
+
+        capturedSignal.Should().BeNull();
     }
 
     // ── Gap 不足 → 不觸發 ──────────────────────────────────────
@@ -64,24 +82,30 @@ public class StrategyA_PreMarketGapTests
     // ── Fakeout 偵測 → 不觸發 ──────────────────────────────────
 
     [Fact]
-    public async Task Fakeout_Pullback_Should_Not_Generate_Signal()
+    public async Task LimitUp_Fakeout_Should_Be_Rejected_As_HighRisk()
     {
         var riskManager = new RiskManager();
         var engine = new StrategyEngine(riskManager, new PreMarketGapConfig(), new OpenBaseStrategyConfig());
-        engine.SetReferencePrice("2330", 600m);
+        engine.SetReferencePrice("2330", 600m); // 漲停大約是 660
 
         SignalContext? capturedSignal = null;
         engine.OnSignalGenerated += s => capturedSignal = s;
 
-        // 先衝高到 615 (>1%)
-        await engine.ProcessTickAsync(MakeTick("2330", 615m, new TimeSpan(8, 30, 0)));
-        await engine.ProcessTickAsync(MakeTick("2330", 616m, new TimeSpan(8, 40, 0)));
-        // 主力抽單回檔：616 → 610，回檔 0.97% > 0.5% 門檻
-        await engine.ProcessTickAsync(MakeTick("2330", 610m, new TimeSpan(8, 50, 0)));
-        // 判定時刻的價格仍 > 1%，但有 fakeout
-        await engine.ProcessTickAsync(MakeTick("2330", 610m, new TimeSpan(8, 59, 55)));
+        RejectedSignal? capturedRejection = null;
+        engine.OnSignalRejected += r => capturedRejection = r;
+
+        // 1. 在 08:54 前呈現漲停試搓 (>= 1.095)
+        await engine.ProcessTickAsync(MakeTick("2330", 660m, new TimeSpan(8, 50, 0)));
+        
+        // 2. 在 08:55 後價格大幅滑落 (抽單)
+        await engine.ProcessTickAsync(MakeTick("2330", 640m, new TimeSpan(8, 55, 30)));
+        
+        // 判定時刻
+        await engine.ProcessTickAsync(MakeTick("2330", 640m, new TimeSpan(8, 59, 55)));
 
         capturedSignal.Should().BeNull();
+        capturedRejection.Should().NotBeNull();
+        capturedRejection!.Reason.Should().Be(SignalResult.RejectRisk); // 高風險擋單
     }
 
     // ── 未設定 RefPrice → 不觸發 ───────────────────────────────

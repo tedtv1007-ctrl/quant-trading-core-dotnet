@@ -13,6 +13,7 @@ public class StrategyEngine : IStrategyEngine
     private readonly IRiskManager _riskManager;
     private readonly PreMarketGapConfig _gapConfig;
     private readonly OpenBaseStrategyConfig _dipConfig;
+    private readonly LiquidityRiskEvaluator _liquidityRiskEvaluator = new();
     
     // 儲存每檔股票的參考價 (Strategy A 使用)
     private readonly ConcurrentDictionary<string, decimal> _referencePrices = new();
@@ -47,6 +48,19 @@ public class StrategyEngine : IStrategyEngine
         
         lock (state)
         {
+            // ── 流動性風險評估 (Limit-Down Emergency Sell) ──
+            if (_referencePrices.TryGetValue(tick.Ticker, out decimal refPriceForRisk))
+            {
+                bool hasLongPosition = state.OpenGapTriggered || state.OpenBaseTriggered;
+                if (_liquidityRiskEvaluator.TryEvaluateEmergencySell(tick, refPriceForRisk, hasLongPosition, out var emergencySignal))
+                {
+                    OnSignalGenerated?.Invoke(emergencySignal!);
+                }
+            }
+
+            // 若因流動性崩跌被暫停進場，直接捨棄後續邏輯
+            if (_liquidityRiskEvaluator.IsSuspended(tick.Ticker)) return;
+
             var time = tick.Timestamp.TimeOfDay;
 
             // Strategy A: Pre-Market Gap
@@ -54,26 +68,60 @@ public class StrategyEngine : IStrategyEngine
             {
                 if (_referencePrices.TryGetValue(tick.Ticker, out decimal refPrice))
                 {
-                    if (tick.Price > refPrice * (1 + _gapConfig.GapStrengthPercent))
+                    // 在 08:54 前追蹤是否呈現漲停試搓 (Limit Up ~ 9.5%)
+                    if (time < new TimeSpan(8, 54, 0))
                     {
-                        state.IsStrongGap = true;
+                        if (tick.Price >= refPrice * 1.095m)
+                        {
+                            state.HitLimitUpBefore0854 = true;
+                        }
+                    }
+
+                    // 僅接受 08:55:00 至 08:59:59 之間的 Tick 作為有效跳空訊號
+                    if (time >= new TimeSpan(8, 55, 0) && time <= new TimeSpan(8, 59, 59))
+                    {
+                        if (tick.Price > refPrice * (1 + _gapConfig.GapStrengthPercent))
+                        {
+                            state.IsStrongGap = true;
+                        }
+                        
+                        // Fakeout (HighRisk) 判斷
+                        if (state.HitLimitUpBefore0854 && state.PreMarketHigh > 0 && 
+                            (state.PreMarketHigh - tick.Price) / state.PreMarketHigh > _gapConfig.FakeoutPullbackPercent)
+                        {
+                            state.IsHighRisk = true;
+                        }
                     }
                 }
                 
-                if (state.PreMarketHigh > 0 && 
-                    (state.PreMarketHigh - tick.Price) / state.PreMarketHigh > _gapConfig.FakeoutPullbackPercent)
-                {
-                    state.IsFakeout = true;
-                }
                 state.PreMarketHigh = Math.Max(state.PreMarketHigh, tick.Price);
             }
 
             // Strategy A Trigger
-            if (time >= _gapConfig.MonitorEnd && time < _gapConfig.MonitorEnd.Add(TimeSpan.FromMinutes(5)) && 
-                state.IsStrongGap && !state.IsFakeout && !state.OpenGapTriggered)
+            if (time >= _gapConfig.MonitorEnd && time < _gapConfig.MonitorEnd.Add(TimeSpan.FromMinutes(5)) && !state.OpenGapTriggered)
             {
-                state.OpenGapTriggered = true;
-                GenerateSignal(StrategyType.OpenGap, OrderType.MarketBuy, tick, tick.Price * (1 - _gapConfig.StopLossOffsetPercent), 1.0);
+                if (state.IsHighRisk)
+                {
+                    state.OpenGapTriggered = true;
+                    OnSignalRejected?.Invoke(new RejectedSignal(
+                        Reason: SignalResult.RejectRisk,
+                        Strategy: StrategyType.OpenGap,
+                        Ticker: tick.Ticker,
+                        Timestamp: tick.Timestamp
+                    ));
+                }
+                else if (state.IsStrongGap)
+                {
+                    state.OpenGapTriggered = true;
+                    GenerateSignal(StrategyType.OpenGap, OrderType.MarketBuy, tick, tick.Price * (1 - _gapConfig.StopLossOffsetPercent), 1.0);
+                }
+            }
+
+            // Track Order Flow Volumes for Strategy B
+            if (time >= _dipConfig.ActiveStart && time <= _dipConfig.ActiveEnd)
+            {
+                if (tick.Type == TickType.Up) state.OuterVolume += tick.Volume;
+                else if (tick.Type == TickType.Down) state.InnerVolume += tick.Volume;
             }
 
             // Strategy B (Intraday Dip): Check for dip below VWAP and then reversal
@@ -93,8 +141,26 @@ public class StrategyEngine : IStrategyEngine
                 else if (tick.Price > state.LastTickPrice && volumeCondition)
                 {
                     state.OpenBaseTriggered = true;
-                    decimal stopLoss = tick.Price * (1 - _dipConfig.StopLossOffsetPercent);
-                    GenerateSignal(StrategyType.IntradayDip, OrderType.LimitBuy, tick, stopLoss, state.LastVolumeRatio);
+
+                    // 弱勢反彈檢測: 價格是否直接突破 VWAP 或 賣盤(內)/買盤(外) > 70%
+                    bool isWeakVwap = tick.Price >= state.Vwap;
+                    bool isWeakVolume = (state.OuterVolume > 0 && (double)state.InnerVolume / state.OuterVolume > 0.70) 
+                                        || (state.OuterVolume == 0 && state.InnerVolume > 0);
+
+                    if (isWeakVwap || isWeakVolume)
+                    {
+                        OnSignalRejected?.Invoke(new RejectedSignal(
+                            Reason: SignalResult.RejectRisk,
+                            Strategy: StrategyType.IntradayDip,
+                            Ticker: tick.Ticker,
+                            Timestamp: tick.Timestamp
+                        ));
+                    }
+                    else
+                    {
+                        decimal stopLoss = tick.Price * (1 - _dipConfig.StopLossOffsetPercent);
+                        GenerateSignal(StrategyType.IntradayDip, OrderType.LimitBuy, tick, stopLoss, state.LastVolumeRatio);
+                    }
                     
                     // Reset spike to prevent immediate re-trigger
                     state.IsVolumeSpiking = false; 
@@ -158,8 +224,9 @@ public class StrategyEngine : IStrategyEngine
     {
         public decimal DailyOpen { get; set; }
         public decimal PreMarketHigh { get; set; }
+        public bool HitLimitUpBefore0854 { get; set; }
         public bool IsStrongGap { get; set; }
-        public bool IsFakeout { get; set; }
+        public bool IsHighRisk { get; set; }
         public bool OpenGapTriggered { get; set; }
         public bool OpenBaseTriggered { get; set; }
 
@@ -171,6 +238,8 @@ public class StrategyEngine : IStrategyEngine
         public bool HasDipped { get; set; }
         public decimal LastTickPrice { get; set; }
         public double LastVolumeRatio { get; set; }
+        public long InnerVolume { get; set; }
+        public long OuterVolume { get; set; }
 
         public void UpdateVWAP(BarData bar)
         {

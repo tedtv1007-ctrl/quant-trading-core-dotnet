@@ -2,6 +2,7 @@
 @using QuantTrading.Core.Models
 @using QuantTrading.Core.Services
 @using QuantTrading.Web.Services
+@using System.Reactive.Linq
 @inject TradingStateService State
 @inject TradingConfiguration Config
 @rendermode InteractiveServer
@@ -242,18 +243,17 @@
     private List<SignalContext> signals = new();
     private List<RejectedSignal> rejections = new();
     private List<TickData> ticks = new();
-    private System.Timers.Timer? _timer;
+    private IDisposable? _subscription;
     private bool showGlobalStats = true;
 
     protected override void OnInitialized()
     {
-        State.OnStateChanged += RefreshData;
-        
-        // 建立 500ms 計時器，確保畫面即時跳動
-        _timer = new System.Timers.Timer(500);
-        _timer.Elapsed += (s, e) => RefreshData();
-        _timer.AutoReset = true;
-        _timer.Enabled = true;
+        // 建立 Rx.NET Observable，匯流 State.OnStateChanged 事件並節流為 250ms
+        _subscription = Observable.FromEvent(
+            h => State.OnStateChanged += h,
+            h => State.OnStateChanged -= h)
+            .Sample(TimeSpan.FromMilliseconds(250))
+            .Subscribe(_ => InvokeAsync(RefreshData));
 
         RefreshData();
     }
@@ -328,8 +328,6 @@
 
     public void Dispose()
     {
-        State.OnStateChanged -= RefreshData;
-        _timer?.Stop();
-        _timer?.Dispose();
+        _subscription?.Dispose();
     }
 }

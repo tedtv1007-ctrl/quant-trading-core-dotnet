@@ -6,7 +6,7 @@ namespace QuantTrading.Core.Models;
 
 public enum StrategyType { OpenGap, IntradayDip }
 public enum MarketDataType { Simulate, Realtime }
-public enum OrderType { MarketBuy, LimitBuy }
+public enum OrderType { MarketBuy, LimitBuy, MarketSell }
 public enum SignalResult { Accept, RejectRisk, RejectMaxTrades, RejectDailyLoss }
 public enum TradeDirection { Buy, Sell }
 public enum TickType { Neutral, Up, Down } // Up=外盤(紅), Down=內盤(綠)

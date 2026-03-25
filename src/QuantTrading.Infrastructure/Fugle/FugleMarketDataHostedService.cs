@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using QuantTrading.Core.Interfaces;
 using QuantTrading.Core.Models;
 using QuantTrading.Core.Services;
+using System.Threading.Channels;
 
 namespace QuantTrading.Infrastructure.Fugle;
 
@@ -20,6 +21,10 @@ public sealed class FugleMarketDataHostedService : BackgroundService
 
     private IStrategyEngine? _engine;
     private IRiskManager? _riskManager;
+
+    // ── Channels for Decoupling ─────────────────────────────────
+    private readonly Channel<TickData> _tickChannel = Channel.CreateUnbounded<TickData>();
+    private readonly Channel<BarData> _barChannel = Channel.CreateUnbounded<BarData>();
 
     /// <summary>啟動後自動訂閱的預設標的。</summary>
     private static readonly string[] DefaultTickers = ["2344"];
@@ -65,17 +70,21 @@ public sealed class FugleMarketDataHostedService : BackgroundService
             _state.AddRejection(rejection);
         };
 
-        // 註冊事件 log — 用於觀察即時行情
-        _feed.OnTickReceived += async tick =>
+        // 啟動 Consumer Tasks
+        _ = ConsumeTicksAsync(stoppingToken);
+        _ = ConsumeBarsAsync(stoppingToken);
+
+        // 註冊事件 log — 用 Producer 將行情推入 Channel
+        _feed.OnTickReceived += tick =>
         {
             _state.AddTick(tick);
-            if (_engine != null) await _engine.ProcessTickAsync(tick);
+            _tickChannel.Writer.TryWrite(tick);
         };
 
-        _feed.OnBarClosed += async bar =>
+        _feed.OnBarClosed += bar =>
         {
             _state.AddBar(bar);
-            if (_engine != null) await _engine.ProcessBarAsync(bar);
+            _barChannel.Writer.TryWrite(bar);
         };
 
         // 監聽 Watchlist 變更
@@ -124,9 +133,43 @@ public sealed class FugleMarketDataHostedService : BackgroundService
         }
     }
 
+    private async Task ConsumeTicksAsync(CancellationToken ct)
+    {
+        try
+        {
+            await foreach (var tick in _tickChannel.Reader.ReadAllAsync(ct))
+            {
+                if (_engine != null) await _engine.ProcessTickAsync(tick);
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error consuming ticks.");
+        }
+    }
+
+    private async Task ConsumeBarsAsync(CancellationToken ct)
+    {
+        try
+        {
+            await foreach (var bar in _barChannel.Reader.ReadAllAsync(ct))
+            {
+                if (_engine != null) await _engine.ProcessBarAsync(bar);
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error consuming bars.");
+        }
+    }
+
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation("FugleMarketDataHostedService stopping...");
+        _tickChannel.Writer.TryComplete();
+        _barChannel.Writer.TryComplete();
         await _feed.StopAsync(cancellationToken);
         await base.StopAsync(cancellationToken);
     }

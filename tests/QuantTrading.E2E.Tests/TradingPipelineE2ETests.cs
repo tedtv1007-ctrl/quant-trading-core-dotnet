@@ -139,18 +139,18 @@ public class TradingPipelineE2ETests
         riskManager.DailyTradeCount.Should().Be(2);
 
         // 接下來的任何訊號都應該被拒絕
-        // 建一個 Strategy B 場景
+        // 建一個 Strategy B 場景 (使用不同的 ticker, 避免觸發已進場的 2330 MarketSell 機制)
         for (int i = 0; i < 6; i++)
         {
-            await engine.ProcessBarAsync(new BarData("2330", 600m, 602m, 598m, 600m, 500,
+            await engine.ProcessBarAsync(new BarData("1111", 600m, 602m, 598m, 600m, 500,
                 _baseDate.Add(new TimeSpan(9, 1 + i, 0))));
         }
         // VWAP re-calc + dip check: (3000*600 + 2000*550)/5000 = 580. 550 < 580 * 0.95 = 551.
-        await engine.ProcessBarAsync(new BarData("2330", 580m, 582m, 545m, 550m, 2000,
+        await engine.ProcessBarAsync(new BarData("1111", 580m, 582m, 545m, 550m, 2000,
             _baseDate.Add(new TimeSpan(9, 7, 0))));
 
-        await engine.ProcessTickAsync(new TickData("2330", 550m, 200, _baseDate.Add(new TimeSpan(9, 7, 30))));
-        await engine.ProcessTickAsync(new TickData("2330", 551m, 150, _baseDate.Add(new TimeSpan(9, 7, 31))));
+        await engine.ProcessTickAsync(new TickData("1111", 550m, 200, _baseDate.Add(new TimeSpan(9, 7, 30)), TickType.Down));
+        await engine.ProcessTickAsync(new TickData("1111", 551m, 150, _baseDate.Add(new TimeSpan(9, 7, 31)), TickType.Up));
 
         // 第 3 筆被拒絕
         signals.Should().HaveCount(2);
