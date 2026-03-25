@@ -105,11 +105,20 @@
                         <input type="date" class="form-control form-control-sm" @bind="simulationDate"
                                disabled="@State.IsSimulationRunning" />
                     </div>
-                    <div class="col-6">
+                    <div class="col-3">
                         <label class="form-label">Tick Delay</label>
                         <input type="range" class="form-range" min="10" max="500" @bind="tickDelayMs"
                                disabled="@State.IsSimulationRunning" />
                         <small class="mono" style="color:var(--qt-text-muted)">@tickDelayMs ms</small>
+                    </div>
+                    <div class="col-3">
+                        <label class="form-label">Replay Speed</label>
+                        <select class="form-select form-select-sm" @bind="replaySpeed" disabled="@State.IsSimulationRunning">
+                            <option value="1.0">1x</option>
+                            <option value="2.0">2x</option>
+                            <option value="5.0">5x</option>
+                            <option value="10.0">10x</option>
+                        </select>
                     </div>
                 </div>
 
@@ -117,6 +126,10 @@
                     <button class="btn btn-success" @onclick="StartSimulation"
                             disabled="@(State.IsSimulationRunning || !watchlist.Any())">
                         <i class="bi bi-play-fill"></i> Start All (@watchlist.Count)
+                    </button>
+                    <button class="btn btn-info text-white" @onclick="StartReplay"
+                            disabled="@(State.IsSimulationRunning || !watchlist.Any())">
+                        <i class="bi bi-clock-history"></i> Historical Replay
                     </button>
                     <button class="btn btn-danger" @onclick="StopSimulation"
                             disabled="@(!State.IsSimulationRunning)">
@@ -248,6 +261,7 @@
     // ── Simulation params ──
     private DateTime simulationDate = DateTime.Today;
     private int tickDelayMs = 100;
+    private double replaySpeed = 2.0;
 
     // ── State snapshots ──
     private List<WatchlistEntry> watchlist = new();
@@ -285,6 +299,25 @@
     private async Task StartSimulation()
     {
         SimService.StartSimulation(simulationDate, tickDelayMs);
+        await Task.Delay(100);
+        RefreshData();
+    }
+
+    private async Task StartReplay()
+    {
+        // 預設路徑：Data/historical_ticks.json
+        string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "historical_ticks.json");
+        // 如果是在開發環境，BaseDirectory 可能不含 Data 目錄，嘗試從專案目錄找
+        if (!File.Exists(path))
+        {
+             path = Path.Combine(Directory.GetCurrentDirectory(), "src", "QuantTrading.Web", "Data", "historical_ticks.json");
+             if (!File.Exists(path))
+             {
+                 path = Path.Combine(Directory.GetCurrentDirectory(), "Data", "historical_ticks.json");
+             }
+        }
+
+        SimService.StartHistoricalReplay(path, replaySpeed);
         await Task.Delay(100);
         RefreshData();
     }

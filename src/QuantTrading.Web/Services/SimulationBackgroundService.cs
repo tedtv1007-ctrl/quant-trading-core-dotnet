@@ -42,11 +42,24 @@ public class SimulationBackgroundService : IDisposable
             if (_state.IsSimulationRunning) return;
             _state.IsSimulationRunning = true;
 
-            // Dispose previous CTS if any (defensive)
             _cts?.Dispose();
             _cts = new CancellationTokenSource();
             var ct = _cts.Token;
             _runningTask = RunAndObserveAsync(simulationDate, tickDelayMs, ct);
+        }
+    }
+
+    public void StartHistoricalReplay(string filePath, double speedMultiplier = 1.0)
+    {
+        lock (_lock)
+        {
+            if (_state.IsSimulationRunning) return;
+            _state.IsSimulationRunning = true;
+
+            _cts?.Dispose();
+            _cts = new CancellationTokenSource();
+            var ct = _cts.Token;
+            _runningTask = RunHistoricalReplayAsync(filePath, speedMultiplier, ct);
         }
     }
 
@@ -148,6 +161,64 @@ public class SimulationBackgroundService : IDisposable
         {
             _state.SimulationStatus = $"Error: {ex.Message}";
             _logger.LogError(ex, "Simulation error.");
+        }
+        finally
+        {
+            _state.IsSimulationRunning = false;
+            _state.NotifyStateChanged();
+        }
+    }
+
+    private async Task RunHistoricalReplayAsync(string filePath, double speedMultiplier, CancellationToken ct)
+    {
+        var watchlist = _state.GetWatchlist();
+        if (watchlist.Count == 0 || !File.Exists(filePath))
+        {
+            _state.IsSimulationRunning = false;
+            return;
+        }
+
+        _state.ClearAll();
+        _state.SimulationStatus = $"Replaying Historical Data (Speed: {speedMultiplier}x)...";
+        _state.NotifyStateChanged();
+
+        try
+        {
+            var (engine, riskManager) = _engineFactory.Create(_config.RiskConfig, _config.GapConfig, _config.DipConfig);
+            foreach (var w in watchlist) engine.SetReferencePrice(w.Ticker, w.RefPrice);
+
+            engine.OnSignalGenerated += signal =>
+            {
+                _state.AddSignal(signal);
+                _state.DailyTradeCount = riskManager.DailyTradeCount;
+                _state.DailyRealizedLoss = riskManager.DailyRealizedLoss;
+            };
+            engine.OnSignalRejected += rejection => _state.AddRejection(rejection);
+
+            var replayService = new QuantTrading.Infrastructure.Feeds.HistoricalDataReplayService(filePath, speedMultiplier);
+            foreach (var w in watchlist) replayService.Subscribe(w.Ticker, MarketDataType.Simulate);
+
+            replayService.OnTickReceived += async tick =>
+            {
+                _state.AddTick(tick);
+                await engine.ProcessTickAsync(tick);
+                _state.NotifyStateChanged();
+            };
+
+            await replayService.StartAsync(ct);
+            
+            // Wait until replay finishes or is cancelled
+            while (replayService.IsConnected && !ct.IsCancellationRequested)
+            {
+                await Task.Delay(500, ct);
+            }
+
+            _state.SimulationStatus = "Replay Completed ✓";
+        }
+        catch (Exception ex)
+        {
+            _state.SimulationStatus = $"Replay Error: {ex.Message}";
+            _logger.LogError(ex, "Historical Replay failed.");
         }
         finally
         {

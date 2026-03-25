@@ -1,0 +1,11 @@
+[
+  { "Ticker": "2330", "Price": 600.0, "Volume": 1000, "Timestamp": "2026-03-25T08:55:00Z", "Type": 0 },
+  { "Ticker": "2330", "Price": 610.0, "Volume": 500, "Timestamp": "2026-03-25T08:56:00Z", "Type": 1 },
+  { "Ticker": "2330", "Price": 615.0, "Volume": 800, "Timestamp": "2026-03-25T08:57:00Z", "Type": 1 },
+  { "Ticker": "2330", "Price": 612.0, "Volume": 300, "Timestamp": "2026-03-25T08:58:00Z", "Type": 2 },
+  { "Ticker": "2330", "Price": 614.0, "Volume": 400, "Timestamp": "2026-03-25T08:59:55Z", "Type": 1 },
+  { "Ticker": "2330", "Price": 614.0, "Volume": 1000, "Timestamp": "2026-03-25T09:01:00Z", "Type": 1 },
+  { "Ticker": "2330", "Price": 590.0, "Volume": 5000, "Timestamp": "2026-03-25T09:05:00Z", "Type": 2 },
+  { "Ticker": "2330", "Price": 585.0, "Volume": 2000, "Timestamp": "2026-03-25T09:07:30Z", "Type": 2 },
+  { "Ticker": "2330", "Price": 586.0, "Volume": 1500, "Timestamp": "2026-03-25T09:07:31Z", "Type": 1 }
+]
