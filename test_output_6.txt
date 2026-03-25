@@ -1,5 +1,0 @@
-  姝ｅ湪纭畾瑕佽繕鍘熺殑椤圭洰鈥?
-  鎵€鏈夐」鐩潎鏄渶鏂扮殑锛屾棤娉曡繕鍘熴€?
-  QuantTrading.Core -> D:\tedtv_github\quant-trading-core-dotnet\src\QuantTrading.Core\bin\Debug\net10.0\QuantTrading.Core.dll
-  QuantTrading.Infrastructure -> D:\tedtv_github\quant-trading-core-dotnet\src\QuantTrading.Infrastructure\bin\Debug\net10.0\QuantTrading.Infrastructure.dll
-D:\tedtv_github\quant-trading-core-dotnet\src\QuantTrading.Web\Services\TradingApiEndpoints.cs(81,50): error CS1739: 鈥淎ccepted鈥濈殑鏈€浣抽噸杞芥病鏈夊悕涓衡€渃ontent鈥濈殑鍙傛暟 [D:\tedtv_github\quant-trading-core-dotnet\src\QuantTrading.Web\QuantTrading.Web.csproj]

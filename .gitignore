@@ -77,3 +77,7 @@ Thumbs.db
 ## Runtime Config Data (JSON file database)
 **/Data/trading-config.json
 **/Data/trade-journal.json
+**/Data/server_error.log
+
+## Temporary Test Output
+test_output*.txt
