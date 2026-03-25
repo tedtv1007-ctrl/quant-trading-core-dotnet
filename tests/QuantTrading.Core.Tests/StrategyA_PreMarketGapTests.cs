@@ -21,7 +21,7 @@ public class StrategyA_PreMarketGapTests
     {
         // Arrange
         var riskManager = new RiskManager();
-        var engine = new StrategyEngine(riskManager, new PreMarketGapConfig(), new IntradayDipConfig());
+        var engine = new StrategyEngine(riskManager, new PreMarketGapConfig(), new OpenBaseStrategyConfig());
         engine.SetReferencePrice("2330", 600m);
 
         SignalContext? capturedSignal = null;
@@ -48,7 +48,7 @@ public class StrategyA_PreMarketGapTests
     public async Task WeakGap_Should_Not_Generate_Signal()
     {
         var riskManager = new RiskManager();
-        var engine = new StrategyEngine(riskManager, new PreMarketGapConfig(), new IntradayDipConfig());
+        var engine = new StrategyEngine(riskManager, new PreMarketGapConfig(), new OpenBaseStrategyConfig());
         engine.SetReferencePrice("2330", 600m);
 
         SignalContext? capturedSignal = null;
@@ -67,7 +67,7 @@ public class StrategyA_PreMarketGapTests
     public async Task Fakeout_Pullback_Should_Not_Generate_Signal()
     {
         var riskManager = new RiskManager();
-        var engine = new StrategyEngine(riskManager, new PreMarketGapConfig(), new IntradayDipConfig());
+        var engine = new StrategyEngine(riskManager, new PreMarketGapConfig(), new OpenBaseStrategyConfig());
         engine.SetReferencePrice("2330", 600m);
 
         SignalContext? capturedSignal = null;
@@ -90,7 +90,7 @@ public class StrategyA_PreMarketGapTests
     public async Task No_RefPrice_Should_Not_Generate_Signal()
     {
         var riskManager = new RiskManager();
-        var engine = new StrategyEngine(riskManager, new PreMarketGapConfig(), new IntradayDipConfig());
+        var engine = new StrategyEngine(riskManager, new PreMarketGapConfig(), new OpenBaseStrategyConfig());
         // 不呼叫 SetReferencePrice
 
         SignalContext? capturedSignal = null;
@@ -107,7 +107,7 @@ public class StrategyA_PreMarketGapTests
     public async Task Should_Emit_Signal_Only_Once_Per_Ticker()
     {
         var riskManager = new RiskManager();
-        var engine = new StrategyEngine(riskManager, new PreMarketGapConfig(), new IntradayDipConfig());
+        var engine = new StrategyEngine(riskManager, new PreMarketGapConfig(), new OpenBaseStrategyConfig());
         engine.SetReferencePrice("2330", 600m);
 
         int signalCount = 0;
@@ -145,7 +145,7 @@ public class StrategyA_PreMarketGapTests
     public async Task Risk_Rejection_Should_Fire_OnSignalRejected()
     {
         var riskManager = new RiskManager(new RiskConfig { MaxDailyTrades = 0 }); // 無配額
-        var engine = new StrategyEngine(riskManager, new PreMarketGapConfig(), new IntradayDipConfig());
+        var engine = new StrategyEngine(riskManager, new PreMarketGapConfig(), new OpenBaseStrategyConfig());
         engine.SetReferencePrice("2330", 600m);
 
         RejectedSignal? rejection = null;

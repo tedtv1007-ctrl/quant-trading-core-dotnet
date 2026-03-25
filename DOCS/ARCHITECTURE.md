@@ -195,7 +195,10 @@ enum TradeDirection  { Buy, Sell }                     // 交易方向
 ### 4.4 組態模型
 
 ```
-PreMarketGapConfig          IntradayDipConfig           RiskConfig
+- `PreMarketGapConfig`: Strategy A parameters.
+- `OpenBaseStrategyConfig`: Strategy B parameters.
+- `RiskConfig`: Risk management constraints.
+PreMarketGapConfig OpenBaseStrategyConfig RiskConfig
 ├── MonitorStart (08:30)    ├── ActiveStart (09:01)     ├── RiskPerTrade (1,100)
 ├── MonitorEnd (08:59:55)   ├── ActiveEnd (13:25)       ├── MaxDailyLoss (5,000)
 ├── ExecutionTime (09:00)   ├── DipThresholdPercent(2%) └── MaxDailyTrades (5)

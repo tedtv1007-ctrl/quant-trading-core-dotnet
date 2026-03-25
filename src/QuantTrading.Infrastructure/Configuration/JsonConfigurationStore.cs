@@ -63,7 +63,7 @@ public class JsonConfigurationStore : IConfigurationStore, IDisposable
                     FakeoutPullbackPercent = dto.GapConfig?.FakeoutPullbackPercent ?? 0.005m,
                     StopLossOffsetPercent = dto.GapConfig?.StopLossOffsetPercent ?? 0.01m,
                 },
-                DipConfig = new IntradayDipConfig
+                DipConfig = new OpenBaseStrategyConfig
                 {
                     ActiveStart = dto.DipConfig?.ActiveStart ?? new TimeSpan(9, 1, 0),
                     ActiveEnd = dto.DipConfig?.ActiveEnd ?? new TimeSpan(13, 25, 0),

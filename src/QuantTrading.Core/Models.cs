@@ -78,27 +78,33 @@ public record PreMarketGapConfig
 }
 
 /// <summary>
-/// Strategy B 參數 — 盤中低接反彈策略 (Intraday Dip &amp; Volume Surge)
+/// Strategy B 參數 — 開盤價基準強弱勢策略 (Open-Price Based Strategy)
 /// </summary>
-public record IntradayDipConfig
+public record OpenBaseStrategyConfig
 {
-    /// <summary>盤中策略啟動時間 (default 09:01)</summary>
+    /// <summary>策略啟動時間 (default 09:01)</summary>
     public TimeSpan ActiveStart { get; init; } = new(9, 1, 0);
 
-    /// <summary>盤中策略結束時間 (default 13:25)</summary>
+    /// <summary>策略結束時間 (default 13:25)</summary>
     public TimeSpan ActiveEnd { get; init; } = new(13, 25, 0);
 
-    /// <summary>低接門檻 — Price &lt; VWAP * (1 - DipThresholdPercent)</summary>
+    /// <summary>買進/賣出觸發偏移比率 (相對於開盤價)</summary>
+    public decimal TriggerOffsetPercent { get; init; } = 0.01m; // 1%
+
+    /// <summary>低接門檻比率 (相對於 VWAP)</summary>
     public decimal DipThresholdPercent { get; init; } = 0.02m; // 2%
 
-    /// <summary>爆量倍數 — 當前 1 分 K 量 > 過去 N 根平均量 * VolumeSpikeMultiplier</summary>
-    public double VolumeSpikeMultiplier { get; init; } = 3.0;
+    /// <summary>是否需要搭配爆量判定</summary>
+    public bool RequireVolumeSpike { get; init; } = true;
 
-    /// <summary>爆量回看 K 棒數量</summary>
+    /// <summary>爆量倍數</summary>
+    public double VolumeSpikeMultiplier { get; init; } = 2.0;
+
+    /// <summary>爆量判定參考的 K 棒數量</summary>
     public int VolumeLookbackBars { get; init; } = 5;
 
     /// <summary>停損距離比率</summary>
-    public decimal StopLossOffsetPercent { get; init; } = 0.01m; // 1%
+    public decimal StopLossOffsetPercent { get; init; } = 0.01m;
 }
 
 /// <summary>
@@ -127,7 +133,7 @@ public class TradingConfiguration
     private readonly object _lock = new();
 
     private PreMarketGapConfig _gapConfig = new();
-    private IntradayDipConfig _dipConfig = new();
+    private OpenBaseStrategyConfig _dipConfig = new();
     private RiskConfig _riskConfig = new();
 
     public PreMarketGapConfig GapConfig
@@ -136,7 +142,7 @@ public class TradingConfiguration
         set { lock (_lock) _gapConfig = value; }
     }
 
-    public IntradayDipConfig DipConfig
+    public OpenBaseStrategyConfig DipConfig
     {
         get { lock (_lock) return _dipConfig; }
         set { lock (_lock) _dipConfig = value; }

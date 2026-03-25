@@ -22,7 +22,7 @@ public class TradingPipelineE2ETests
         var riskManager = new RiskManager();
         // 使用極低門檻確保測試資料能觸發
         var gapConfig = new PreMarketGapConfig { GapStrengthPercent = 0.001m, FakeoutPullbackPercent = 0.1m };
-        var engine = new StrategyEngine(riskManager, gapConfig, new IntradayDipConfig());
+        var engine = new StrategyEngine(riskManager, gapConfig, new OpenBaseStrategyConfig());
         engine.SetReferencePrice("2330", 600m);
 
         var signals = new List<SignalContext>();
@@ -65,7 +65,7 @@ public class TradingPipelineE2ETests
     {
         // Arrange
         var riskManager = new RiskManager();
-        var dipConfig = new IntradayDipConfig { VolumeSpikeMultiplier = 1.5, DipThresholdPercent = 0.05m };
+        var dipConfig = new OpenBaseStrategyConfig { VolumeSpikeMultiplier = 1.5, DipThresholdPercent = 0.05m };
         var engine = new StrategyEngine(riskManager, new PreMarketGapConfig(), dipConfig);
 
         var signals = new List<SignalContext>();
@@ -119,7 +119,7 @@ public class TradingPipelineE2ETests
     {
         var riskManager = new RiskManager(new RiskConfig { MaxDailyTrades = 2 });
         var gapConfig = new PreMarketGapConfig { GapStrengthPercent = 0.001m };
-        var dipConfig = new IntradayDipConfig { VolumeSpikeMultiplier = 1.5, DipThresholdPercent = 0.05m };
+        var dipConfig = new OpenBaseStrategyConfig { VolumeSpikeMultiplier = 1.5, DipThresholdPercent = 0.05m };
         var engine = new StrategyEngine(riskManager, gapConfig, dipConfig);
         engine.SetReferencePrice("2330", 600m);
         engine.SetReferencePrice("2317", 100m);
@@ -166,7 +166,7 @@ public class TradingPipelineE2ETests
     {
         var riskManager = new RiskManager(new RiskConfig { MaxDailyTrades = 1 });
         var gapConfig = new PreMarketGapConfig { GapStrengthPercent = 0.001m };
-        var engine = new StrategyEngine(riskManager, gapConfig, new IntradayDipConfig());
+        var engine = new StrategyEngine(riskManager, gapConfig, new OpenBaseStrategyConfig());
         engine.SetReferencePrice("2330", 600m);
 
         var signals = new List<SignalContext>();
@@ -181,7 +181,7 @@ public class TradingPipelineE2ETests
         riskManager.DailyTradeCount.Should().Be(0);
 
         // Day 2: 需要新的 engine 實例 (或至少新的 state) — 這裡用新的 engine
-        var engine2 = new StrategyEngine(riskManager, new PreMarketGapConfig { GapStrengthPercent = 0.001m }, new IntradayDipConfig());
+        var engine2 = new StrategyEngine(riskManager, new PreMarketGapConfig { GapStrengthPercent = 0.001m }, new OpenBaseStrategyConfig());
         engine2.SetReferencePrice("2330", 600m);
         engine2.OnSignalGenerated += s => signals.Add(s);
 
@@ -200,7 +200,7 @@ public class TradingPipelineE2ETests
     {
         var riskManager = new RiskManager(new RiskConfig { MaxDailyLoss = 2000m });
         var gapConfig = new PreMarketGapConfig { GapStrengthPercent = 0.001m };
-        var engine = new StrategyEngine(riskManager, gapConfig, new IntradayDipConfig());
+        var engine = new StrategyEngine(riskManager, gapConfig, new OpenBaseStrategyConfig());
         engine.SetReferencePrice("2330", 600m);
 
         var signals = new List<SignalContext>();
@@ -216,7 +216,7 @@ public class TradingPipelineE2ETests
         riskManager.RecordRealizedLoss(2500m);
 
         // 用新 engine (模擬另一檔) 嘗試交易
-        var engine2 = new StrategyEngine(riskManager, new PreMarketGapConfig { GapStrengthPercent = 0.001m }, new IntradayDipConfig());
+        var engine2 = new StrategyEngine(riskManager, new PreMarketGapConfig { GapStrengthPercent = 0.001m }, new OpenBaseStrategyConfig());
         engine2.SetReferencePrice("2317", 100m);
         engine2.OnSignalGenerated += s => signals.Add(s);
         engine2.OnSignalRejected += r => rejections.Add(r);

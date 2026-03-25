@@ -12,7 +12,7 @@ public class StrategyEngine : IStrategyEngine
 {
     private readonly IRiskManager _riskManager;
     private readonly PreMarketGapConfig _gapConfig;
-    private readonly IntradayDipConfig _dipConfig;
+    private readonly OpenBaseStrategyConfig _dipConfig;
     
     // 儲存每檔股票的參考價 (Strategy A 使用)
     private readonly ConcurrentDictionary<string, decimal> _referencePrices = new();
@@ -29,11 +29,11 @@ public class StrategyEngine : IStrategyEngine
     public StrategyEngine(
         IRiskManager riskManager, 
         PreMarketGapConfig? gapConfig = null, 
-        IntradayDipConfig? dipConfig = null)
+        OpenBaseStrategyConfig? dipConfig = null)
     {
         _riskManager = riskManager;
         _gapConfig = gapConfig ?? new PreMarketGapConfig();
-        _dipConfig = dipConfig ?? new IntradayDipConfig();
+        _dipConfig = dipConfig ?? new OpenBaseStrategyConfig();
     }
 
     public void SetReferencePrice(string ticker, decimal refPrice)
@@ -49,7 +49,7 @@ public class StrategyEngine : IStrategyEngine
         {
             var time = tick.Timestamp.TimeOfDay;
 
-            // Strategy A: Pre-Market Gap (MonitorStart ~ MonitorEnd)
+            // Strategy A: Pre-Market Gap
             if (time >= _gapConfig.MonitorStart && time <= _gapConfig.MonitorEnd)
             {
                 if (_referencePrices.TryGetValue(tick.Ticker, out decimal refPrice))
@@ -60,7 +60,6 @@ public class StrategyEngine : IStrategyEngine
                     }
                 }
                 
-                // Check for sharp pullbacks (Fakeout Filter)
                 if (state.PreMarketHigh > 0 && 
                     (state.PreMarketHigh - tick.Price) / state.PreMarketHigh > _gapConfig.FakeoutPullbackPercent)
                 {
@@ -69,7 +68,7 @@ public class StrategyEngine : IStrategyEngine
                 state.PreMarketHigh = Math.Max(state.PreMarketHigh, tick.Price);
             }
 
-            // Strategy A Trigger: At or after MonitorEnd
+            // Strategy A Trigger
             if (time >= _gapConfig.MonitorEnd && time < _gapConfig.MonitorEnd.Add(TimeSpan.FromMinutes(5)) && 
                 state.IsStrongGap && !state.IsFakeout && !state.OpenGapTriggered)
             {
@@ -77,28 +76,28 @@ public class StrategyEngine : IStrategyEngine
                 GenerateSignal(StrategyType.OpenGap, OrderType.MarketBuy, tick, tick.Price * (1 - _gapConfig.StopLossOffsetPercent), 1.0);
             }
 
-            // Strategy B Confirmation: Next Tick Up (Price > Last Price)
-            // MUST be within active hours AND price > stopLoss (LastBarLow) to be valid
-            if (state.PotentialDipSignalReady && time >= _dipConfig.ActiveStart && time <= _dipConfig.ActiveEnd)
+            // Strategy B (Intraday Dip): Check for dip below VWAP and then reversal
+            if (time >= _dipConfig.ActiveStart && time <= _dipConfig.ActiveEnd && !state.OpenBaseTriggered)
             {
-                bool isDip = tick.Price < (state.Vwap * (1m - _dipConfig.DipThresholdPercent));
+                bool volumeCondition = !_dipConfig.RequireVolumeSpike || state.IsVolumeSpiking;
                 
-                // If we haven't confirmed a dip yet, we are still looking for it
-                if (!state.DipDetected && isDip)
+                // 1. Check for Dip below VWAP threshold (If not yet dipped)
+                if (!state.HasDipped)
                 {
-                    state.DipDetected = true;
+                    if (state.Vwap > 0 && tick.Price <= state.Vwap * (1 - _dipConfig.DipThresholdPercent))
+                    {
+                        state.HasDipped = true;
+                    }
                 }
-
-                if (state.DipDetected && state.LastTickPrice > 0 && tick.Price > state.LastTickPrice && tick.Price > state.LastBarLow)
+                // 2. If already dipped, check for reversal (Trend up) + Volume condition
+                else if (tick.Price > state.LastTickPrice && volumeCondition)
                 {
-                    GenerateSignal(StrategyType.IntradayDip, OrderType.LimitBuy, tick, state.LastBarLow, state.LastVolumeRatio);
-                    state.PotentialDipSignalReady = false; // Reset after trigger
-                    state.DipDetected = false;
-                }
-                else
-                {
-                    // Update LastBarLow if we find a deeper dip
-                    state.LastBarLow = Math.Min(state.LastBarLow, tick.Price);
+                    state.OpenBaseTriggered = true;
+                    decimal stopLoss = tick.Price * (1 - _dipConfig.StopLossOffsetPercent);
+                    GenerateSignal(StrategyType.IntradayDip, OrderType.LimitBuy, tick, stopLoss, state.LastVolumeRatio);
+                    
+                    // Reset spike to prevent immediate re-trigger
+                    state.IsVolumeSpiking = false; 
                 }
             }
 
@@ -113,33 +112,24 @@ public class StrategyEngine : IStrategyEngine
 
         lock (bars)
         {
+            // 第一根 K 棒決定開盤價
+            if (state.DailyOpen == 0) state.DailyOpen = bar.Open;
+
             bars.Enqueue(bar);
             if (bars.Count > 100) bars.Dequeue();
 
-            // Update VWAP
             state.UpdateVWAP(bar);
 
-            // Initialize LastTickPrice if not set
-            if (state.LastTickPrice == 0) state.LastTickPrice = bar.Close;
-
-            // Strategy B: Intraday Dip & Volume Surge (ActiveStart ~ ActiveEnd)
             var time = bar.Timestamp.TimeOfDay;
             if (time >= _dipConfig.ActiveStart && time <= _dipConfig.ActiveEnd)
             {
-                if (bars.Count >= _dipConfig.VolumeLookbackBars + 1)
+                if (bars.Count >= 6) // Lookback for volume
                 {
                     var history = bars.Take(bars.Count - 1).ToList();
-                    double avgVol = history.TakeLast(_dipConfig.VolumeLookbackBars).Average(b => (double)b.Volume);
+                    double avgVol = history.TakeLast(5).Average(b => (double)b.Volume);
                     
-                    bool isVolumeSpike = (double)bar.Volume > (avgVol * _dipConfig.VolumeSpikeMultiplier);
-
-                    if (isVolumeSpike)
-                    {
-                        state.PotentialDipSignalReady = true;
-                        state.DipDetected = bar.Close < (state.Vwap * (1m - _dipConfig.DipThresholdPercent));
-                        state.LastBarLow = bar.Low;
-                        state.LastVolumeRatio = (double)bar.Volume / avgVol;
-                    }
+                    state.IsVolumeSpiking = (double)bar.Volume > (avgVol * _dipConfig.VolumeSpikeMultiplier);
+                    state.LastVolumeRatio = (double)bar.Volume / avgVol;
                 }
             }
         }
@@ -166,19 +156,20 @@ public class StrategyEngine : IStrategyEngine
 
     private class IntradayState
     {
+        public decimal DailyOpen { get; set; }
         public decimal PreMarketHigh { get; set; }
         public bool IsStrongGap { get; set; }
         public bool IsFakeout { get; set; }
         public bool OpenGapTriggered { get; set; }
+        public bool OpenBaseTriggered { get; set; }
 
         public decimal Vwap { get; private set; }
         private decimal _cumPriceVol;
         private long _cumVol;
 
-        public bool PotentialDipSignalReady { get; set; }
-        public bool DipDetected { get; set; }
+        public bool IsVolumeSpiking { get; set; }
+        public bool HasDipped { get; set; }
         public decimal LastTickPrice { get; set; }
-        public decimal LastBarLow { get; set; }
         public double LastVolumeRatio { get; set; }
 
         public void UpdateVWAP(BarData bar)

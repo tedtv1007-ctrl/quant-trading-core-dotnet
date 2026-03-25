@@ -119,8 +119,8 @@ public sealed class FugleMarketDataHostedService : BackgroundService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "FugleMarketDataHostedService fatal error.");
-            throw;
+            _logger.LogError(ex, "FugleMarketDataHostedService encountered an error but will remain alive for other services.");
+            // Do not re-throw here to prevent crashing the entire Web Application Host in dev/test environments.
         }
     }
 

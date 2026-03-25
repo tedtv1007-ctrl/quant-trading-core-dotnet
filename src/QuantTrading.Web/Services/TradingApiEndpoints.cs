@@ -15,11 +15,16 @@ public static class TradingApiEndpoints
 
         // ── Watchlist ───────────────────────────────────────────
 
+        // Helper to bypass PipeWriter.UnflushedBytes issue in some test environments
+        IResult JsonOk(object value) => Results.Content(
+            System.Text.Json.JsonSerializer.Serialize(value, new System.Text.Json.JsonSerializerOptions 
+            { 
+                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+                Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+            }), "application/json");
+
         // GET /api/trading/watchlist — 取得監控清單
-        group.MapGet("/watchlist", (TradingStateService state) =>
-        {
-            return Results.Ok(state.GetWatchlist());
-        });
+        group.MapGet("/watchlist", (TradingStateService state) => JsonOk(state.GetWatchlist()));
 
         // POST /api/trading/watchlist — 新增監控股票
         group.MapPost("/watchlist", (WatchlistRequest request, TradingStateService state) =>
@@ -30,37 +35,28 @@ public static class TradingApiEndpoints
                 return Results.BadRequest(new { error = "RefPrice must be greater than 0." });
 
             state.AddToWatchlist(request.Ticker, request.RefPrice);
-            return Results.Ok(new { message = $"Added {request.Ticker}" });
+            return JsonOk(new { message = $"Added {request.Ticker}" });
         });
 
         // DELETE /api/trading/watchlist/{ticker} — 移除監控股票
         group.MapDelete("/watchlist/{ticker}", (string ticker, TradingStateService state) =>
         {
             state.RemoveFromWatchlist(ticker);
-            return Results.Ok(new { message = $"Removed {ticker}" });
+            return JsonOk(new { message = $"Removed {ticker}" });
         });
 
         // ── Signals ─────────────────────────────────────────────
 
         // GET /api/trading/signals?ticker=XXX — 取得訊號 (可依 ticker 過濾)
-        group.MapGet("/signals", (TradingStateService state, string? ticker) =>
-        {
-            return Results.Ok(state.GetSignals(ticker));
-        });
+        group.MapGet("/signals", (TradingStateService state, string? ticker) => JsonOk(state.GetSignals(ticker)));
 
         // GET /api/trading/rejections?ticker=XXX — 取得被拒絕的訊號
-        group.MapGet("/rejections", (TradingStateService state, string? ticker) =>
-        {
-            return Results.Ok(state.GetRejections(ticker));
-        });
+        group.MapGet("/rejections", (TradingStateService state, string? ticker) => JsonOk(state.GetRejections(ticker)));
 
         // ── Status ──────────────────────────────────────────────
 
         // GET /api/trading/status — 取得風控狀態（原子快照）
-        group.MapGet("/status", (TradingStateService state) =>
-        {
-            return Results.Ok(state.GetStatusSnapshot());
-        });
+        group.MapGet("/status", (TradingStateService state) => JsonOk(state.GetStatusSnapshot()));
 
         // ── Simulation ──────────────────────────────────────────
 
@@ -82,29 +78,27 @@ public static class TradingApiEndpoints
                 request.SimulationDate == default ? DateTime.Today : request.SimulationDate,
                 request.TickDelayMs);
 
-            return Results.Accepted(value: new { message = "Multi-stock simulation started" });
+            return Results.Content(
+                System.Text.Json.JsonSerializer.Serialize(new { message = "Multi-stock simulation started" }, new System.Text.Json.JsonSerializerOptions 
+                { 
+                    PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase 
+                }), "application/json", statusCode: 202);
         });
 
         // POST /api/trading/stop — 停止模擬
         group.MapPost("/stop", async (SimulationBackgroundService sim) =>
         {
             await sim.StopSimulationAsync();
-            return Results.Ok(new { message = "Stop completed" });
+            return JsonOk(new { message = "Stop completed" });
         });
 
         // ── Market Data ─────────────────────────────────────────
 
         // GET /api/trading/ticks?ticker=XXX — 取得最近 Ticks
-        group.MapGet("/ticks", (TradingStateService state, string? ticker) =>
-        {
-            return Results.Ok(state.GetRecentTicks(ticker));
-        });
+        group.MapGet("/ticks", (TradingStateService state, string? ticker) => JsonOk(state.GetRecentTicks(ticker)));
 
         // GET /api/trading/bars?ticker=XXX — 取得最近 Bars
-        group.MapGet("/bars", (TradingStateService state, string? ticker) =>
-        {
-            return Results.Ok(state.GetRecentBars(ticker));
-        });
+        group.MapGet("/bars", (TradingStateService state, string? ticker) => JsonOk(state.GetRecentBars(ticker)));
 
         // ── Trade Journal ───────────────────────────────────────
 

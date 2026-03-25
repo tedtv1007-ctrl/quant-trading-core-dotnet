@@ -1,0 +1,26 @@
+  姝ｅ湪纭畾瑕佽繕鍘熺殑椤圭洰鈥?
+  鎵€鏈夐」鐩潎鏄渶鏂扮殑锛屾棤娉曡繕鍘熴€?
+  QuantTrading.Core -> D:\tedtv_github\quant-trading-core-dotnet\src\QuantTrading.Core\bin\Debug\net10.0\QuantTrading.Core.dll
+  QuantTrading.Infrastructure -> D:\tedtv_github\quant-trading-core-dotnet\src\QuantTrading.Infrastructure\bin\Debug\net10.0\QuantTrading.Infrastructure.dll
+  QuantTrading.Web -> D:\tedtv_github\quant-trading-core-dotnet\src\QuantTrading.Web\bin\Debug\net10.0\QuantTrading.Web.dll
+  QuantTrading.E2E.Tests -> D:\tedtv_github\quant-trading-core-dotnet\tests\QuantTrading.E2E.Tests\bin\Debug\net10.0\QuantTrading.E2E.Tests.dll
+D:\tedtv_github\quant-trading-core-dotnet\tests\QuantTrading.E2E.Tests\bin\Debug\net10.0\QuantTrading.E2E.Tests.dll (.NETCoreApp,Version=v10.0)鐨勬祴璇曡繍琛?
+D:\tedtv_github\quant-trading-core-dotnet\tests\QuantTrading.Core.Tests\StrategyA_PreMarketGapTests.cs(110,84): error CS0246: 鏈兘鎵惧埌绫诲瀷鎴栧懡鍚嶇┖闂村悕鈥淚ntradayDipConfig鈥?鏄惁缂哄皯 using 鎸囦护鎴栫▼搴忛泦寮曠敤?) [D:\tedtv_github\quant-trading-core-dotnet\tests\QuantTrading.Core.Tests\QuantTrading.Core.Tests.csproj]
+D:\tedtv_github\quant-trading-core-dotnet\tests\QuantTrading.Core.Tests\StrategyA_PreMarketGapTests.cs(148,84): error CS0246: 鏈兘鎵惧埌绫诲瀷鎴栧懡鍚嶇┖闂村悕鈥淚ntradayDipConfig鈥?鏄惁缂哄皯 using 鎸囦护鎴栫▼搴忛泦寮曠敤?) [D:\tedtv_github\quant-trading-core-dotnet\tests\QuantTrading.Core.Tests\QuantTrading.Core.Tests.csproj]
+鎬诲叡 1 涓祴璇曟枃浠朵笌鎸囧畾妯″紡鐩稿尮閰嶃€?
+[xUnit.net 00:00:00.59]     QuantTrading.E2E.Tests.WebApiE2ETests.GetStatus_Should_Return_Ok_With_Initial_State [FAIL]
+  澶辫触 QuantTrading.E2E.Tests.WebApiE2ETests.GetStatus_Should_Return_Ok_With_Initial_State [416 ms]
+  閿欒娑堟伅:
+   Expected response.StatusCode to be HttpStatusCode.OK {value: 200}, but found HttpStatusCode.InternalServerError {value: 500}.
+  鍫嗘爤璺熻釜:
+     at FluentAssertions.Execution.LateBoundTestFramework.Throw(String message)
+   at FluentAssertions.Execution.DefaultAssertionStrategy.HandleFailure(String message)
+   at FluentAssertions.Execution.AssertionScope.AddPreFormattedFailure(String formattedFailureMessage)
+   at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+   at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+   at FluentAssertions.Execution.AssertionChain.FailWith(String message, Object[] args)
+   at FluentAssertions.Primitives.EnumAssertions`2.Be(TEnum expected, String because, Object[] becauseArgs)
+   at QuantTrading.E2E.Tests.WebApiE2ETests.GetStatus_Should_Return_Ok_With_Initial_State() in D:\tedtv_github\quant-trading-core-dotnet\tests\QuantTrading.E2E.Tests\WebApiE2ETests.cs:line 32
+--- End of stack trace from previous location ---
+
+澶辫触!  - 澶辫触:     1锛岄€氳繃:     0锛屽凡璺宠繃:     0锛屾€昏:     1锛屾寔缁椂闂? 416 ms - QuantTrading.E2E.Tests.dll (net10.0)

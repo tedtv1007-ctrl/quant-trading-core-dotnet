@@ -19,7 +19,16 @@ var configStore = new JsonConfigurationStore(
 builder.Services.AddSingleton<IConfigurationStore>(configStore);
 
 // 啟動時從檔案載入組態 (直接使用實例，不需 BuildServiceProvider)
-var tradingConfig = configStore.LoadAsync().GetAwaiter().GetResult();
+TradingConfiguration tradingConfig;
+try
+{
+    tradingConfig = configStore.LoadAsync().GetAwaiter().GetResult();
+}
+catch (Exception)
+{
+    // 若載入失敗 (例如環境權限問題)，回傳預設值以確保 App 能啟動
+    tradingConfig = new TradingConfiguration();
+}
 builder.Services.AddSingleton(tradingConfig);
 
 // 注意：個別 Config (GapConfig, DipConfig, RiskConfig) 應透過 TradingConfiguration 存取，

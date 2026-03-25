@@ -101,7 +101,7 @@ public interface ITradingEngineFactory
     (IStrategyEngine Engine, IRiskManager RiskManager) Create(
         RiskConfig? riskConfig = null,
         PreMarketGapConfig? gapConfig = null,
-        IntradayDipConfig? dipConfig = null);
+        OpenBaseStrategyConfig? dipConfig = null);
 }
 
 // ── 組態持久化介面 ──────────────────────────────────────────────────────

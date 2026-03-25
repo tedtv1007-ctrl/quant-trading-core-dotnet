@@ -1,0 +1,188 @@
+  姝ｅ湪纭畾瑕佽繕鍘熺殑椤圭洰鈥?
+  鎵€鏈夐」鐩潎鏄渶鏂扮殑锛屾棤娉曡繕鍘熴€?
+  QuantTrading.Core -> D:\tedtv_github\quant-trading-core-dotnet\src\QuantTrading.Core\bin\Debug\net10.0\QuantTrading.Core.dll
+  QuantTrading.Infrastructure -> D:\tedtv_github\quant-trading-core-dotnet\src\QuantTrading.Infrastructure\bin\Debug\net10.0\QuantTrading.Infrastructure.dll
+  QuantTrading.Web -> D:\tedtv_github\quant-trading-core-dotnet\src\QuantTrading.Web\bin\Debug\net10.0\QuantTrading.Web.dll
+  QuantTrading.E2E.Tests -> D:\tedtv_github\quant-trading-core-dotnet\tests\QuantTrading.E2E.Tests\bin\Debug\net10.0\QuantTrading.E2E.Tests.dll
+D:\tedtv_github\quant-trading-core-dotnet\tests\QuantTrading.E2E.Tests\bin\Debug\net10.0\QuantTrading.E2E.Tests.dll (.NETCoreApp,Version=v10.0)鐨勬祴璇曡繍琛?
+鎬诲叡 1 涓祴璇曟枃浠朵笌鎸囧畾妯″紡鐩稿尮閰嶃€?
+  QuantTrading.Core.Tests -> D:\tedtv_github\quant-trading-core-dotnet\tests\QuantTrading.Core.Tests\bin\Debug\net10.0\QuantTrading.Core.Tests.dll
+D:\tedtv_github\quant-trading-core-dotnet\tests\QuantTrading.Core.Tests\bin\Debug\net10.0\QuantTrading.Core.Tests.dll (.NETCoreApp,Version=v10.0)鐨勬祴璇曡繍琛?
+鎬诲叡 1 涓祴璇曟枃浠朵笌鎸囧畾妯″紡鐩稿尮閰嶃€?
+[xUnit.net 00:00:00.27]     QuantTrading.E2E.Tests.TradingPipelineE2ETests.Mixed_Strategies_Should_Respect_MaxDailyTrades [FAIL]
+[xUnit.net 00:00:00.27]     QuantTrading.E2E.Tests.TradingPipelineE2ETests.FullDay_StrategyB_DipVolumeReversal_Should_Produce_LimitBuy_Signal [FAIL]
+  澶辫触 QuantTrading.E2E.Tests.TradingPipelineE2ETests.Mixed_Strategies_Should_Respect_MaxDailyTrades [54 ms]
+  閿欒娑堟伅:
+   Expected rejections to contain more than 0 item(s), but found 0: {empty}.
+  鍫嗘爤璺熻釜:
+     at FluentAssertions.Execution.LateBoundTestFramework.Throw(String message)
+   at FluentAssertions.Execution.DefaultAssertionStrategy.HandleFailure(String message)
+   at FluentAssertions.Execution.AssertionScope.AddPreFormattedFailure(String formattedFailureMessage)
+   at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+   at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+   at FluentAssertions.Execution.AssertionChain.FailWith(String message, Object[] args)
+   at FluentAssertions.Execution.GivenSelector`1.FailWith(String message, Object[] args)
+   at FluentAssertions.Execution.GivenSelector`1.FailWith(String message, Func`2[] args)
+   at FluentAssertions.Collections.GenericCollectionAssertions`3.<>c__DisplayClass48_0.<HaveCountGreaterThan>b__0(AssertionChain chain)
+   at FluentAssertions.Execution.AssertionChain.WithExpectation(String message, Action`1 chain, Object[] args)
+   at FluentAssertions.Execution.AssertionChain.WithExpectation(String message, Object arg1, Action`1 chain)
+   at FluentAssertions.Collections.GenericCollectionAssertions`3.HaveCountGreaterThan(Int32 expected, String because, Object[] becauseArgs)
+   at QuantTrading.E2E.Tests.TradingPipelineE2ETests.Mixed_Strategies_Should_Respect_MaxDailyTrades() in D:\tedtv_github\quant-trading-core-dotnet\tests\QuantTrading.E2E.Tests\TradingPipelineE2ETests.cs:line 157
+--- End of stack trace from previous location ---
+  澶辫触 QuantTrading.E2E.Tests.TradingPipelineE2ETests.FullDay_StrategyB_DipVolumeReversal_Should_Produce_LimitBuy_Signal [2 ms]
+  閿欒娑堟伅:
+   Expected signals to contain a single item, but the collection is empty.
+  鍫嗘爤璺熻釜:
+     at FluentAssertions.Execution.LateBoundTestFramework.Throw(String message)
+   at FluentAssertions.Execution.DefaultAssertionStrategy.HandleFailure(String message)
+   at FluentAssertions.Execution.AssertionScope.AddPreFormattedFailure(String formattedFailureMessage)
+   at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+   at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+   at FluentAssertions.Execution.AssertionChain.FailWith(String message)
+   at FluentAssertions.Collections.GenericCollectionAssertions`3.ContainSingle(String because, Object[] becauseArgs)
+   at QuantTrading.E2E.Tests.TradingPipelineE2ETests.FullDay_StrategyB_DipVolumeReversal_Should_Produce_LimitBuy_Signal() in D:\tedtv_github\quant-trading-core-dotnet\tests\QuantTrading.E2E.Tests\TradingPipelineE2ETests.cs:line 106
+--- End of stack trace from previous location ---
+[xUnit.net 00:00:00.58]     QuantTrading.E2E.Tests.WebApiE2ETests.GetSignals_Should_Return_Empty_Array_Initially [FAIL]
+[xUnit.net 00:00:00.59]     QuantTrading.E2E.Tests.WebApiE2ETests.PostStop_Should_Return_Ok [FAIL]
+[xUnit.net 00:00:00.68]     QuantTrading.E2E.Tests.WebApiE2ETests.GetStatus_Should_Return_Ok_With_Initial_State [FAIL]
+  澶辫触 QuantTrading.E2E.Tests.WebApiE2ETests.GetSignals_Should_Return_Empty_Array_Initially [412 ms]
+  閿欒娑堟伅:
+   Expected response.StatusCode to be HttpStatusCode.OK {value: 200}, but found HttpStatusCode.InternalServerError {value: 500}.
+  鍫嗘爤璺熻釜:
+     at FluentAssertions.Execution.LateBoundTestFramework.Throw(String message)
+   at FluentAssertions.Execution.DefaultAssertionStrategy.HandleFailure(String message)
+   at FluentAssertions.Execution.AssertionScope.AddPreFormattedFailure(String formattedFailureMessage)
+   at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+   at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+   at FluentAssertions.Execution.AssertionChain.FailWith(String message, Object[] args)
+   at FluentAssertions.Primitives.EnumAssertions`2.Be(TEnum expected, String because, Object[] becauseArgs)
+   at QuantTrading.E2E.Tests.WebApiE2ETests.GetSignals_Should_Return_Empty_Array_Initially() in D:\tedtv_github\quant-trading-core-dotnet\tests\QuantTrading.E2E.Tests\WebApiE2ETests.cs:line 47
+--- End of stack trace from previous location ---
+  澶辫触 QuantTrading.E2E.Tests.WebApiE2ETests.PostStop_Should_Return_Ok [10 ms]
+  閿欒娑堟伅:
+   Expected response.StatusCode to be HttpStatusCode.OK {value: 200}, but found HttpStatusCode.InternalServerError {value: 500}.
+  鍫嗘爤璺熻釜:
+     at FluentAssertions.Execution.LateBoundTestFramework.Throw(String message)
+   at FluentAssertions.Execution.DefaultAssertionStrategy.HandleFailure(String message)
+   at FluentAssertions.Execution.AssertionScope.AddPreFormattedFailure(String formattedFailureMessage)
+   at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+   at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+   at FluentAssertions.Execution.AssertionChain.FailWith(String message, Object[] args)
+   at FluentAssertions.Primitives.EnumAssertions`2.Be(TEnum expected, String because, Object[] becauseArgs)
+   at QuantTrading.E2E.Tests.WebApiE2ETests.PostStop_Should_Return_Ok() in D:\tedtv_github\quant-trading-core-dotnet\tests\QuantTrading.E2E.Tests\WebApiE2ETests.cs:line 109
+--- End of stack trace from previous location ---
+  澶辫触 QuantTrading.E2E.Tests.WebApiE2ETests.GetStatus_Should_Return_Ok_With_Initial_State [82 ms]
+  閿欒娑堟伅:
+   Expected response.StatusCode to be HttpStatusCode.OK {value: 200}, but found HttpStatusCode.InternalServerError {value: 500}.
+  鍫嗘爤璺熻釜:
+     at FluentAssertions.Execution.LateBoundTestFramework.Throw(String message)
+   at FluentAssertions.Execution.DefaultAssertionStrategy.HandleFailure(String message)
+   at FluentAssertions.Execution.AssertionScope.AddPreFormattedFailure(String formattedFailureMessage)
+   at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+   at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+   at FluentAssertions.Execution.AssertionChain.FailWith(String message, Object[] args)
+   at FluentAssertions.Primitives.EnumAssertions`2.Be(TEnum expected, String because, Object[] becauseArgs)
+   at QuantTrading.E2E.Tests.WebApiE2ETests.GetStatus_Should_Return_Ok_With_Initial_State() in D:\tedtv_github\quant-trading-core-dotnet\tests\QuantTrading.E2E.Tests\WebApiE2ETests.cs:line 32
+--- End of stack trace from previous location ---
+[xUnit.net 00:00:00.68]     QuantTrading.E2E.Tests.WebApiE2ETests.GetBars_Should_Return_Empty_Initially [FAIL]
+[xUnit.net 00:00:00.69]     QuantTrading.E2E.Tests.WebApiE2ETests.GetTicks_Should_Return_Empty_Initially [FAIL]
+  澶辫触 QuantTrading.E2E.Tests.WebApiE2ETests.GetBars_Should_Return_Empty_Initially [4 ms]
+  閿欒娑堟伅:
+   Expected response.StatusCode to be HttpStatusCode.OK {value: 200}, but found HttpStatusCode.InternalServerError {value: 500}.
+  鍫嗘爤璺熻釜:
+     at FluentAssertions.Execution.LateBoundTestFramework.Throw(String message)
+   at FluentAssertions.Execution.DefaultAssertionStrategy.HandleFailure(String message)
+   at FluentAssertions.Execution.AssertionScope.AddPreFormattedFailure(String formattedFailureMessage)
+   at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+   at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+   at FluentAssertions.Execution.AssertionChain.FailWith(String message, Object[] args)
+   at FluentAssertions.Primitives.EnumAssertions`2.Be(TEnum expected, String because, Object[] becauseArgs)
+   at QuantTrading.E2E.Tests.WebApiE2ETests.GetBars_Should_Return_Empty_Initially() in D:\tedtv_github\quant-trading-core-dotnet\tests\QuantTrading.E2E.Tests\WebApiE2ETests.cs:line 83
+--- End of stack trace from previous location ---
+  澶辫触 QuantTrading.E2E.Tests.WebApiE2ETests.GetTicks_Should_Return_Empty_Initially [7 ms]
+  閿欒娑堟伅:
+   Expected response.StatusCode to be HttpStatusCode.OK {value: 200}, but found HttpStatusCode.InternalServerError {value: 500}.
+  鍫嗘爤璺熻釜:
+     at FluentAssertions.Execution.LateBoundTestFramework.Throw(String message)
+   at FluentAssertions.Execution.DefaultAssertionStrategy.HandleFailure(String message)
+   at FluentAssertions.Execution.AssertionScope.AddPreFormattedFailure(String formattedFailureMessage)
+   at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+   at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+   at FluentAssertions.Execution.AssertionChain.FailWith(String message, Object[] args)
+   at FluentAssertions.Primitives.EnumAssertions`2.Be(TEnum expected, String because, Object[] becauseArgs)
+   at QuantTrading.E2E.Tests.WebApiE2ETests.GetTicks_Should_Return_Empty_Initially() in D:\tedtv_github\quant-trading-core-dotnet\tests\QuantTrading.E2E.Tests\WebApiE2ETests.cs:line 74
+--- End of stack trace from previous location ---
+[xUnit.net 00:00:05.87]     QuantTrading.E2E.Tests.WebApiE2ETests.Simulate_Then_GetSignals_Should_Return_Generated_Signals [FAIL]
+  澶辫触 QuantTrading.E2E.Tests.WebApiE2ETests.Simulate_Then_GetSignals_Should_Return_Generated_Signals [5 s]
+  閿欒娑堟伅:
+   Expected statusResponse.StatusCode to be HttpStatusCode.OK {value: 200}, but found HttpStatusCode.InternalServerError {value: 500}.
+  鍫嗘爤璺熻釜:
+     at FluentAssertions.Execution.LateBoundTestFramework.Throw(String message)
+   at FluentAssertions.Execution.DefaultAssertionStrategy.HandleFailure(String message)
+   at FluentAssertions.Execution.AssertionScope.AddPreFormattedFailure(String formattedFailureMessage)
+   at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+   at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+   at FluentAssertions.Execution.AssertionChain.FailWith(String message, Object[] args)
+   at FluentAssertions.Primitives.EnumAssertions`2.Be(TEnum expected, String because, Object[] becauseArgs)
+   at QuantTrading.E2E.Tests.WebApiE2ETests.Simulate_Then_GetSignals_Should_Return_Generated_Signals() in D:\tedtv_github\quant-trading-core-dotnet\tests\QuantTrading.E2E.Tests\WebApiE2ETests.cs:line 136
+--- End of stack trace from previous location ---
+[xUnit.net 00:00:05.90]     QuantTrading.E2E.Tests.WebApiE2ETests.GetRejections_Should_Return_Empty_Array_Initially [FAIL]
+[xUnit.net 00:00:05.90]     QuantTrading.E2E.Tests.WebApiE2ETests.PostSimulate_Should_Return_Accepted [FAIL]
+  澶辫触 QuantTrading.E2E.Tests.WebApiE2ETests.GetRejections_Should_Return_Empty_Array_Initially [21 ms]
+  閿欒娑堟伅:
+   Expected response.StatusCode to be HttpStatusCode.OK {value: 200}, but found HttpStatusCode.InternalServerError {value: 500}.
+  鍫嗘爤璺熻釜:
+     at FluentAssertions.Execution.LateBoundTestFramework.Throw(String message)
+   at FluentAssertions.Execution.DefaultAssertionStrategy.HandleFailure(String message)
+   at FluentAssertions.Execution.AssertionScope.AddPreFormattedFailure(String formattedFailureMessage)
+   at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+   at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+   at FluentAssertions.Execution.AssertionChain.FailWith(String message, Object[] args)
+   at FluentAssertions.Primitives.EnumAssertions`2.Be(TEnum expected, String because, Object[] becauseArgs)
+   at QuantTrading.E2E.Tests.WebApiE2ETests.GetRejections_Should_Return_Empty_Array_Initially() in D:\tedtv_github\quant-trading-core-dotnet\tests\QuantTrading.E2E.Tests\WebApiE2ETests.cs:line 61
+--- End of stack trace from previous location ---
+  澶辫触 QuantTrading.E2E.Tests.WebApiE2ETests.PostSimulate_Should_Return_Accepted [7 ms]
+  閿欒娑堟伅:
+   Expected response.StatusCode to be HttpStatusCode.Accepted {value: 202}, but found HttpStatusCode.InternalServerError {value: 500}.
+  鍫嗘爤璺熻釜:
+     at FluentAssertions.Execution.LateBoundTestFramework.Throw(String message)
+   at FluentAssertions.Execution.DefaultAssertionStrategy.HandleFailure(String message)
+   at FluentAssertions.Execution.AssertionScope.AddPreFormattedFailure(String formattedFailureMessage)
+   at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+   at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+   at FluentAssertions.Execution.AssertionChain.FailWith(String message, Object[] args)
+   at FluentAssertions.Primitives.EnumAssertions`2.Be(TEnum expected, String because, Object[] becauseArgs)
+   at QuantTrading.E2E.Tests.WebApiE2ETests.PostSimulate_Should_Return_Accepted() in D:\tedtv_github\quant-trading-core-dotnet\tests\QuantTrading.E2E.Tests\WebApiE2ETests.cs:line 100
+--- End of stack trace from previous location ---
+
+澶辫触!  - 澶辫触:    10锛岄€氳繃:    12锛屽凡璺宠繃:     0锛屾€昏:    22锛屾寔缁椂闂? 5 s - QuantTrading.E2E.Tests.dll (net10.0)
+[xUnit.net 00:00:04.83]     QuantTrading.Core.Tests.StrategyB_IntradayDipTests.Dip_Plus_VolumeSpike_Plus_Reversal_Should_Generate_LimitBuy [FAIL]
+  澶辫触 QuantTrading.Core.Tests.StrategyB_IntradayDipTests.Dip_Plus_VolumeSpike_Plus_Reversal_Should_Generate_LimitBuy [575 ms]
+  閿欒娑堟伅:
+   Expected capturedSignal not to be <null>.
+  鍫嗘爤璺熻釜:
+     at FluentAssertions.Execution.LateBoundTestFramework.Throw(String message)
+   at FluentAssertions.Execution.DefaultAssertionStrategy.HandleFailure(String message)
+   at FluentAssertions.Execution.AssertionScope.AddPreFormattedFailure(String formattedFailureMessage)
+   at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+   at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+   at FluentAssertions.Execution.AssertionChain.FailWith(String message)
+   at FluentAssertions.Primitives.ReferenceTypeAssertions`2.NotBeNull(String because, Object[] becauseArgs)
+   at QuantTrading.Core.Tests.StrategyB_IntradayDipTests.Dip_Plus_VolumeSpike_Plus_Reversal_Should_Generate_LimitBuy() in D:\tedtv_github\quant-trading-core-dotnet\tests\QuantTrading.Core.Tests\StrategyB_IntradayDipTests.cs:line 65
+--- End of stack trace from previous location ---
+[xUnit.net 00:00:04.83]     QuantTrading.Core.Tests.StrategyB_IntradayDipTests.Should_Reset_After_Signal_And_Not_Retrigger_Immediately [FAIL]
+  澶辫触 QuantTrading.Core.Tests.StrategyB_IntradayDipTests.Should_Reset_After_Signal_And_Not_Retrigger_Immediately [9 ms]
+  閿欒娑堟伅:
+   Expected signalCount to be 1, but found 0 (difference of -1).
+  鍫嗘爤璺熻釜:
+     at FluentAssertions.Execution.LateBoundTestFramework.Throw(String message)
+   at FluentAssertions.Execution.DefaultAssertionStrategy.HandleFailure(String message)
+   at FluentAssertions.Execution.AssertionScope.AddPreFormattedFailure(String formattedFailureMessage)
+   at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+   at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+   at FluentAssertions.Execution.AssertionChain.FailWith(String message, Object[] args)
+   at FluentAssertions.Numeric.NumericAssertionsBase`3.Be(T expected, String because, Object[] becauseArgs)
+   at QuantTrading.Core.Tests.StrategyB_IntradayDipTests.Should_Reset_After_Signal_And_Not_Retrigger_Immediately() in D:\tedtv_github\quant-trading-core-dotnet\tests\QuantTrading.Core.Tests\StrategyB_IntradayDipTests.cs:line 209
+--- End of stack trace from previous location ---
+
+澶辫触!  - 澶辫触:     2锛岄€氳繃:    96锛屽凡璺宠繃:     0锛屾€昏:    98锛屾寔缁椂闂? 2 s - QuantTrading.Core.Tests.dll (net10.0)
