@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  quant-trading-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:8080"
+    volumes:
+      - trading-data:/app/Data
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  trading-data:

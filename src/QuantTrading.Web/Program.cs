@@ -13,6 +13,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+// ── Health Check ────────────────────────────────────────────────
+builder.Services.AddHealthChecks();
+
 // ── 組態持久化 (JSON 檔案資料庫) ────────────────────────────────
 var configStore = new JsonConfigurationStore(
     Path.Combine(builder.Environment.ContentRootPath, "Data", "trading-config.json"));
@@ -44,6 +47,10 @@ builder.Services.AddSingleton<TradingStateService>();
 builder.Services.AddSingleton<SimulationBackgroundService>();
 builder.Services.AddSingleton<ITradingEngineFactory, TradingEngineFactory>();
 
+// ── 績效分析 & 系統事件日誌 (參考 NoFx Dashboard 設計) ──────────
+builder.Services.AddSingleton<TradeStatisticsService>();
+builder.Services.AddSingleton<SystemEventLogService>();
+
 // ── Fugle 即時行情服務 (WebSocket) ──────────────────────────────
 // 設定在 appsettings.json 的 "Fugle" 區段
 // 需要 Fugle 付費方案 (WebSocket Streaming 權限) 才能啟用
@@ -62,6 +69,9 @@ app.UseHttpsRedirection();
 
 app.UseStaticFiles();
 app.UseAntiforgery();
+
+// ── Health Check endpoint ────────────────────────────────────────
+app.MapHealthChecks("/api/health");
 
 // ── REST API endpoints ───────────────────────────────────────────
 app.MapTradingApi();

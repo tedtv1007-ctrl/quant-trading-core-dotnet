@@ -112,6 +112,31 @@ public static class TradingApiEndpoints
                 "text/csv",
                 fileName);
         });
+
+        // ── Performance Analytics (NoFx-inspired) ───────────────
+
+        // GET /api/trading/analytics?from=2026-01-01&to=2026-03-31 — 取得績效分析
+        group.MapGet("/analytics", async (TradeStatisticsService stats, DateTime? from, DateTime? to) =>
+        {
+            var summary = await stats.GetPerformanceSummaryAsync(from, to);
+            return JsonOk(summary);
+        });
+
+        // ── System Event Log ────────────────────────────────────
+
+        // GET /api/trading/events?count=100&level=Warning&category=Risk — 取得系統事件
+        group.MapGet("/events", (SystemEventLogService eventLog, int? count, string? level, string? category) =>
+        {
+            SystemEventLevel? levelFilter = level switch
+            {
+                "Info" => SystemEventLevel.Info,
+                "Warning" => SystemEventLevel.Warning,
+                "Error" => SystemEventLevel.Error,
+                _ => null
+            };
+            var events = eventLog.GetEvents(count ?? 100, levelFilter, category);
+            return JsonOk(events);
+        });
     }
 }
 

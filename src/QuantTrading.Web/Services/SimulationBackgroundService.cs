@@ -16,6 +16,7 @@ public class SimulationBackgroundService : IDisposable
     private readonly TradingStateService _state;
     private readonly TradingConfiguration _config;
     private readonly ILogger<SimulationBackgroundService> _logger;
+    private readonly SystemEventLogService _eventLog;
     private readonly object _lock = new();
     private CancellationTokenSource? _cts;
     private Task? _runningTask;
@@ -24,12 +25,14 @@ public class SimulationBackgroundService : IDisposable
         ITradingEngineFactory engineFactory,
         TradingStateService state,
         TradingConfiguration config,
-        ILogger<SimulationBackgroundService> logger)
+        ILogger<SimulationBackgroundService> logger,
+        SystemEventLogService eventLog)
     {
         _engineFactory = engineFactory;
         _state = state;
         _config = config;
         _logger = logger;
+        _eventLog = eventLog;
     }
 
     /// <summary>
@@ -45,6 +48,7 @@ public class SimulationBackgroundService : IDisposable
             _cts?.Dispose();
             _cts = new CancellationTokenSource();
             var ct = _cts.Token;
+            _eventLog.LogSystem($"Simulation started: date={simulationDate:yyyy-MM-dd}, delay={tickDelayMs}ms");
             _runningTask = RunAndObserveAsync(simulationDate, tickDelayMs, ct);
         }
     }
@@ -119,11 +123,14 @@ public class SimulationBackgroundService : IDisposable
                 _state.AddSignal(signal);
                 _state.DailyTradeCount = riskManager.DailyTradeCount;
                 _state.DailyRealizedLoss = riskManager.DailyRealizedLoss;
+                _eventLog.LogSignal($"{signal.Strategy} {signal.OrderType} {signal.Ticker} @{signal.EntryPrice:F2}",
+                    $"Size={signal.PositionSize}, SL={signal.StopLossPrice:F2}, VolRatio={signal.VolumeRatio:F1}");
             };
 
             engine.OnSignalRejected += rejection =>
             {
                 _state.AddRejection(rejection);
+                _eventLog.LogRisk($"Signal rejected: {rejection.Strategy} {rejection.Ticker} — {rejection.Reason}");
             };
 
             // 為每支股票產生模擬資料

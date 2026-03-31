@@ -1,0 +1,128 @@
+@page "/events"
+@using QuantTrading.Core.Services
+@rendermode InteractiveServer
+@implements IDisposable
+@inject SystemEventLogService EventLog
+
+<PageTitle>System Events - QuantTrading</PageTitle>
+
+<div class="qt-page-title">
+    <i class="bi bi-terminal-fill title-icon"></i> System Event Log
+</div>
+<p style="color:var(--qt-text-muted); margin-top:-1rem; margin-bottom:1.5rem; font-size:0.85rem">
+    Structured logs of trading system events — signals, risk decisions, and system status.
+</p>
+
+@* ── Filter Bar ── *@
+<div class="d-flex gap-2 mb-3 align-items-center">
+    <select class="form-select form-select-sm" style="width:auto" @bind="_levelFilter">
+        <option value="">All Levels</option>
+        <option value="Info">Info</option>
+        <option value="Warning">Warning</option>
+        <option value="Error">Error</option>
+    </select>
+    <select class="form-select form-select-sm" style="width:auto" @bind="_categoryFilter">
+        <option value="">All Categories</option>
+        <option value="Signal">Signal</option>
+        <option value="Risk">Risk</option>
+        <option value="System">System</option>
+        <option value="Simulation">Simulation</option>
+        <option value="Config">Config</option>
+    </select>
+    <button class="btn btn-sm" style="background:var(--qt-blue); color:#fff" @onclick="RefreshEvents">
+        <i class="bi bi-arrow-clockwise"></i> Refresh
+    </button>
+    <span class="ms-auto" style="font-size:0.78rem; color:var(--qt-text-muted)">
+        Total: @EventLog.TotalCount events
+    </span>
+</div>
+
+<div class="qt-card">
+    <div class="qt-card-body p-0">
+        @if (_events.Any())
+        {
+            <div style="max-height:700px; overflow-y:auto">
+                <table class="qt-table">
+                    <thead>
+                        <tr>
+                            <th style="width:150px">Time</th>
+                            <th style="width:80px">Level</th>
+                            <th style="width:100px">Category</th>
+                            <th>Message</th>
+                            <th style="width:200px">Detail</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var evt in _events)
+                        {
+                            <tr>
+                                <td class="mono" style="font-size:0.78rem">@evt.Timestamp.ToLocalTime().ToString("HH:mm:ss.fff")</td>
+                                <td>
+                                    <span class="qt-badge @GetLevelBadge(evt.Level)">@evt.Level</span>
+                                </td>
+                                <td style="font-size:0.82rem; color:var(--qt-text-muted)">@evt.Category</td>
+                                <td style="font-size:0.82rem">@evt.Message</td>
+                                <td style="font-size:0.75rem; color:var(--qt-text-dim); max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap"
+                                    title="@(evt.Detail ?? "")">@(evt.Detail ?? "—")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div style="padding:3rem; text-align:center; color:var(--qt-text-dim)">
+                <i class="bi bi-terminal" style="font-size:2.5rem; display:block; margin-bottom:0.75rem"></i>
+                No events recorded yet. Start a simulation or perform operations to see events.
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private List<SystemEvent> _events = new();
+    private string _levelFilter = "";
+    private string _categoryFilter = "";
+
+    protected override void OnInitialized()
+    {
+        EventLog.OnEventLogged += OnEventLogged;
+        RefreshEvents();
+    }
+
+    private void OnEventLogged()
+    {
+        InvokeAsync(() =>
+        {
+            RefreshEvents();
+            StateHasChanged();
+        });
+    }
+
+    private void RefreshEvents()
+    {
+        SystemEventLevel? level = _levelFilter switch
+        {
+            "Info" => SystemEventLevel.Info,
+            "Warning" => SystemEventLevel.Warning,
+            "Error" => SystemEventLevel.Error,
+            _ => null
+        };
+
+        _events = EventLog.GetEvents(200, level, string.IsNullOrEmpty(_categoryFilter) ? null : _categoryFilter);
+    }
+
+    private string GetLevelBadge(SystemEventLevel level) => level switch
+    {
+        SystemEventLevel.Info => "qt-badge-blue",
+        SystemEventLevel.Warning => "qt-badge-yellow",
+        SystemEventLevel.Error => "qt-badge-red",
+        _ => "qt-badge-blue"
+    };
+
+    public void Dispose()
+    {
+        EventLog.OnEventLogged -= OnEventLogged;
+    }
+}

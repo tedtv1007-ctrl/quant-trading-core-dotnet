@@ -1,0 +1,245 @@
+@page "/analytics"
+@using QuantTrading.Core.Models
+@using QuantTrading.Core.Services
+@rendermode InteractiveServer
+@inject TradeStatisticsService StatsService
+
+<PageTitle>Performance Analytics - QuantTrading</PageTitle>
+
+<div class="qt-page-title">
+    <i class="bi bi-graph-up title-icon"></i> Performance Analytics
+</div>
+<p style="color:var(--qt-text-muted); margin-top:-1rem; margin-bottom:1.5rem; font-size:0.85rem">
+    Trade performance metrics, P/L analysis, and strategy breakdown. Data sourced from Trade Journal.
+</p>
+
+@* ── Date Range Filter ── *@
+<div class="d-flex gap-2 mb-3 align-items-center">
+    <label class="form-label mb-0" style="font-weight:600; font-size:0.82rem; color:var(--qt-text-muted)">
+        <i class="bi bi-calendar3"></i> Period:
+    </label>
+    <input type="date" class="form-control form-control-sm" style="max-width:160px"
+           value="@_fromDate.ToString("yyyy-MM-dd")" @onchange="e => OnFromDateChanged(e)" />
+    <span style="color:var(--qt-text-muted)">→</span>
+    <input type="date" class="form-control form-control-sm" style="max-width:160px"
+           value="@_toDate.ToString("yyyy-MM-dd")" @onchange="e => OnToDateChanged(e)" />
+    <button class="btn btn-sm btn-outline-secondary" style="border-color:var(--qt-border); color:var(--qt-text-muted)"
+            @onclick="SetThisMonth">This Month</button>
+    <button class="btn btn-sm btn-outline-secondary" style="border-color:var(--qt-border); color:var(--qt-text-muted)"
+            @onclick="SetThisWeek">This Week</button>
+    <button class="btn btn-sm btn-outline-secondary" style="border-color:var(--qt-border); color:var(--qt-text-muted)"
+            @onclick="SetAllTime">All Time</button>
+    <button class="btn btn-sm" style="background:var(--qt-blue); color:#fff; font-weight:600" @onclick="RefreshData">
+        <i class="bi bi-arrow-clockwise"></i> Refresh
+    </button>
+</div>
+
+@if (_loading)
+{
+    <div style="text-align:center; padding:3rem; color:var(--qt-text-muted)">
+        <span class="spinner-border spinner-border-sm me-2"></span> Loading analytics...
+    </div>
+}
+else
+{
+    @* ── Key Metrics Row ── *@
+    <div class="row g-3 mb-4">
+        <div class="col-md col-6">
+            <div class="qt-stat-card @(_summary.TotalPnL >= 0 ? "accent-green" : "accent-red")">
+                <i class="bi bi-cash-stack stat-icon"></i>
+                <div class="stat-label">Total P/L</div>
+                <div class="stat-value @(_summary.TotalPnL >= 0 ? "text-profit" : "text-loss")">
+                    $@_summary.TotalPnL.ToString("N0")
+                </div>
+            </div>
+        </div>
+        <div class="col-md col-6">
+            <div class="qt-stat-card accent-blue">
+                <i class="bi bi-percent stat-icon"></i>
+                <div class="stat-label">Win Rate</div>
+                <div class="stat-value">@_summary.WinRate%</div>
+                <div class="stat-sub">@_summary.WinCount W / @_summary.LossCount L</div>
+            </div>
+        </div>
+        <div class="col-md col-6">
+            <div class="qt-stat-card accent-purple">
+                <i class="bi bi-arrow-left-right stat-icon"></i>
+                <div class="stat-label">Total Trades</div>
+                <div class="stat-value">@_summary.TotalTrades</div>
+                <div class="stat-sub">@_summary.CompletedPairs pairs matched</div>
+            </div>
+        </div>
+        <div class="col-md col-6">
+            <div class="qt-stat-card accent-yellow">
+                <i class="bi bi-trophy stat-icon"></i>
+                <div class="stat-label">Profit Factor</div>
+                <div class="stat-value">@_summary.ProfitFactor</div>
+                <div class="stat-sub">avg win/loss ratio</div>
+            </div>
+        </div>
+        <div class="col-md col-6">
+            <div class="qt-stat-card accent-red">
+                <i class="bi bi-graph-down-arrow stat-icon"></i>
+                <div class="stat-label">Max Drawdown</div>
+                <div class="stat-value text-loss">$@_summary.MaxDrawdown.ToString("N0")</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        @* ── Avg Win/Loss Detail ── *@
+        <div class="col-md-4">
+            <div class="qt-card">
+                <div class="qt-card-header" style="color:var(--qt-green)">
+                    <i class="bi bi-bar-chart-fill"></i> Win/Loss Detail
+                </div>
+                <div class="qt-card-body p-0">
+                    <table class="qt-table">
+                        <tbody>
+                            <tr>
+                                <td style="color:var(--qt-text-muted)">Average Win</td>
+                                <td class="mono text-profit"><strong>+$@_summary.AverageWin.ToString("N0")</strong></td>
+                            </tr>
+                            <tr>
+                                <td style="color:var(--qt-text-muted)">Average Loss</td>
+                                <td class="mono text-loss"><strong>$@_summary.AverageLoss.ToString("N0")</strong></td>
+                            </tr>
+                            <tr>
+                                <td style="color:var(--qt-text-muted)">Buy Total</td>
+                                <td class="mono"><strong>$@_summary.BuyTotal.ToString("N0")</strong></td>
+                            </tr>
+                            <tr>
+                                <td style="color:var(--qt-text-muted)">Sell Total</td>
+                                <td class="mono"><strong>$@_summary.SellTotal.ToString("N0")</strong></td>
+                            </tr>
+                            <tr>
+                                <td style="color:var(--qt-text-muted)">Net Flow</td>
+                                <td class="mono @(_summary.SellTotal - _summary.BuyTotal >= 0 ? "text-profit" : "text-loss")">
+                                    <strong>$@((_summary.SellTotal - _summary.BuyTotal).ToString("N0"))</strong>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        @* ── Strategy Breakdown ── *@
+        <div class="col-md-4">
+            <div class="qt-card">
+                <div class="qt-card-header" style="color:var(--qt-blue)">
+                    <i class="bi bi-pie-chart-fill"></i> Strategy Breakdown
+                </div>
+                <div class="qt-card-body">
+                    @if (_summary.StrategyBreakdown.Any())
+                    {
+                        @foreach (var kv in _summary.StrategyBreakdown.OrderByDescending(x => x.Value))
+                        {
+                            var pct = _summary.TotalTrades > 0 ? (int)((double)kv.Value / _summary.TotalTrades * 100) : 0;
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between" style="font-size:0.82rem">
+                                    <span style="color:var(--qt-text)">@kv.Key</span>
+                                    <span class="mono" style="color:var(--qt-text-muted)">@kv.Value trades (@pct%)</span>
+                                </div>
+                                <div style="height:6px; background:var(--qt-bg-surface); border-radius:3px; overflow:hidden; margin-top:2px">
+                                    <div style="width:@pct%; height:100%; background:var(--qt-blue); border-radius:3px"></div>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div style="text-align:center; padding:1.5rem; color:var(--qt-text-dim)">No strategy data</div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @* ── Daily P/L Chart ── *@
+        <div class="col-md-4">
+            <div class="qt-card">
+                <div class="qt-card-header" style="color:var(--qt-cyan)">
+                    <i class="bi bi-calendar-event"></i> Daily P/L
+                </div>
+                <div class="qt-card-body">
+                    @if (_summary.DailyPnL.Any())
+                    {
+                        var maxAbs = _summary.DailyPnL.Values.Select(Math.Abs).DefaultIfEmpty(1).Max();
+                        @foreach (var kv in _summary.DailyPnL.OrderByDescending(x => x.Key).Take(14))
+                        {
+                            var barPct = maxAbs > 0 ? (int)(Math.Abs(kv.Value) / maxAbs * 100) : 0;
+                            var isProfit = kv.Value >= 0;
+                            <div class="d-flex align-items-center mb-1" style="font-size:0.78rem">
+                                <span class="mono" style="width:60px; color:var(--qt-text-muted)">@kv.Key.ToString("MM/dd")</span>
+                                <div style="flex:1; display:flex; align-items:center; gap:4px">
+                                    <div style="height:8px; width:@barPct%; background:@(isProfit ? "var(--qt-green)" : "var(--qt-red)"); border-radius:2px; min-width:2px"></div>
+                                    <span class="mono @(isProfit ? "text-profit" : "text-loss")">@(isProfit ? "+" : "")@kv.Value.ToString("N0")</span>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div style="text-align:center; padding:1.5rem; color:var(--qt-text-dim)">No daily data</div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private PerformanceSummary _summary = PerformanceSummary.Empty;
+    private DateTime _fromDate = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private DateTime _toDate = DateTime.Today;
+    private bool _loading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshData();
+    }
+
+    private async Task RefreshData()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        _summary = await StatsService.GetPerformanceSummaryAsync(_fromDate, _toDate);
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private void OnFromDateChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var d)) _fromDate = d;
+    }
+
+    private void OnToDateChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var d)) _toDate = d;
+    }
+
+    private async Task SetThisMonth()
+    {
+        _fromDate = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+        _toDate = DateTime.Today;
+        await RefreshData();
+    }
+
+    private async Task SetThisWeek()
+    {
+        var today = DateTime.Today;
+        int diff = (7 + (today.DayOfWeek - DayOfWeek.Monday)) % 7;
+        _fromDate = today.AddDays(-diff);
+        _toDate = today;
+        await RefreshData();
+    }
+
+    private async Task SetAllTime()
+    {
+        _fromDate = new DateTime(2020, 1, 1);
+        _toDate = DateTime.Today;
+        await RefreshData();
+    }
+}
